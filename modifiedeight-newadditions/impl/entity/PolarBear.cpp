@@ -437,7 +437,7 @@ void PolarBear::addAdditonalSaveData(CompoundTag* tag) {
 }
 
 bool_t PolarBear::removeWhenFarAway() {
-	return this->friendlyTicks <= 0;
+	return this->friendlyTicks <= 0 && Animal::removeWhenFarAway();
 }
 
 bool_t PolarBear::canSpawn() {

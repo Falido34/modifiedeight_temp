@@ -17,11 +17,13 @@ SnowGolemModel::SnowGolemModel()
 
 	this->arm1.setModel(this);
 	this->arm1.addBox(-1.0f, 0.0f, -1.0f, 12, 2, 2, -0.5f);
-	this->arm1.setPos(0.0f, 6.0f, 0.0f);
+	this->arm1.setPos(5.0f, 6.0f, 0.0f);
+	this->arm1.zRotAngle = 1.0f;
 
 	this->arm2.setModel(this);
-	this->arm2.addBox(-1.0f, 0.0f, -1.0f, 12, 2, 2, -0.5f);
-	this->arm2.setPos(0.0f, 6.0f, 0.0f);
+	this->arm2.addBox(-11.0f, 0.0f, -1.0f, 12, 2, 2, -0.5f);
+	this->arm2.setPos(-5.0f, 6.0f, 0.0f);
+	this->arm2.zRotAngle = -1.0f;
 
 	this->piece1.setModel(this);
 	this->piece1.addBox(-5.0f, -10.0f, -5.0f, 10, 10, 10, -0.5f);
@@ -36,22 +38,23 @@ SnowGolemModel::~SnowGolemModel() {
 }
 
 void SnowGolemModel::setupAnim(float a2, float a3, float a4, float a5, float a6, float a7) {
-	this->head.yRotAngle = a5 * (float)(M_PI / 180.0);
-	this->head.xRotAngle = a6 * (float)(M_PI / 180.0);
-	this->piece1.yRotAngle = a5 * (float)(M_PI / 180.0) * 0.25f;
-
-	float l = Mth::sin(this->piece1.yRotAngle);
-	float m = Mth::cos(this->piece1.yRotAngle);
-
+	this->head.xRotAngle = 0.0f;
+	this->head.yRotAngle = 0.0f;
+	this->head.zRotAngle = 0.0f;
+	this->piece1.xRotAngle = 0.0f;
+	this->piece1.yRotAngle = 0.0f;
+	this->piece1.zRotAngle = 0.0f;
+	this->piece2.xRotAngle = 0.0f;
+	this->piece2.yRotAngle = 0.0f;
+	this->piece2.zRotAngle = 0.0f;
+	this->arm1.xRotAngle = 0.0f;
+	this->arm1.yRotAngle = 0.0f;
 	this->arm1.zRotAngle = 1.0f;
+	this->arm1.setPos(5.0f, 6.0f, 0.0f);
+	this->arm2.xRotAngle = 0.0f;
+	this->arm2.yRotAngle = 0.0f;
 	this->arm2.zRotAngle = -1.0f;
-	this->arm1.yRotAngle = this->piece1.yRotAngle;
-	this->arm2.yRotAngle = (float)M_PI + this->piece1.yRotAngle;
-
-	this->arm1.xOffset = m * 5.0f;
-	this->arm1.zOffset = -l * 5.0f;
-	this->arm2.xOffset = -m * 5.0f;
-	this->arm2.zOffset = l * 5.0f;
+	this->arm2.setPos(-5.0f, 6.0f, 0.0f);
 }
 
 void SnowGolemModel::render(Entity* a2, float a3, float a4, float a5, float a6, float a7, float a8) {

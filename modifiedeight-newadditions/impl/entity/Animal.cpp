@@ -1,7 +1,9 @@
 #include <entity/Animal.hpp>
 #include <entity/Player.hpp>
 #include <entity/player/Abilities.hpp>
+#include <entity/ai/MoveControl.hpp>
 #include <entity/path/Path.hpp>
+#include <entity/path/PathNavigation.hpp>
 #include <inventory/Inventory.hpp>
 #include <item/Item.hpp>
 #include <level/Level.hpp>
@@ -9,10 +11,14 @@
 #include <tile/Tile.hpp>
 #include <math/Mth.hpp>
 #include <cmath>
+#include <cstdlib>
 
 Animal::Animal(Level* a2)
 	: AgableMob(a2) {
 	this->inLove = 0;
+	this->familyParentId = 0;
+	this->familyCoParentId = 0;
+	this->familyRepathTicks = 0;
 }
 bool_t Animal::canMate(const Animal* a2) {
 	int32_t v4; // r6
@@ -186,6 +192,8 @@ void Animal::aiStep() {
 							this->resetLove();
 							mate->resetLove();
 							baby->setAge(-24000);
+							((Animal*)baby)->familyParentId = this->entityId;
+							((Animal*)baby)->familyCoParentId = mate->entityId;
 							baby->moveTo(this->posX, this->posY, this->posZ, this->yaw, 0.0f);
 							this->level->addEntity(baby);
 							for (int32_t p = 0; p < 7; ++p) {
@@ -215,7 +223,13 @@ bool_t Animal::canSpawn() {
 	return (tBelow == Tile::grass->blockID || tBelow == Tile::snow->blockID || tBelow == Tile::topSnow->blockID || tBelow == Tile::dirt->blockID || tBelow == Tile::sand->blockID || tBelow == Tile::leaves->blockID || tBelow == Tile::ice->blockID) && this->level->getRawBrightness(v3, v6, v11) >= 4 && Mob::canSpawn();
 }
 bool_t Animal::removeWhenFarAway() {
-	return !this->isBaby();
+	if (this->isBaby()) {
+		return 0;
+	}
+	if (this->findSeparatedBaby(40.0f, 0)) {
+		return 0;
+	}
+	return 1;
 }
 float Animal::getWalkTargetValue(int32_t x, int32_t y, int32_t z) {
 	int tCur = this->level->getTile(x, y, z);
@@ -231,6 +245,374 @@ float Animal::getWalkTargetValue(int32_t x, int32_t y, int32_t z) {
 }
 Entity* Animal::findAttackTarget() {
 	return 0;
+}
+bool_t Animal::isSittingOrResting() {
+	return 0;
+}
+bool_t Animal::isFollowingOwner() {
+	return 0;
+}
+Animal* Animal::findFamilyParent(float maxRange) {
+	if (!this->isBaby() || !this->level) {
+		return 0;
+	}
+	float maxDistSq = maxRange * maxRange;
+	int32_t myType = this->getEntityTypeId();
+	Animal* validPrimary = 0;
+	Animal* validSecondary = 0;
+	int32_t ids[2] = {this->familyParentId, this->familyCoParentId};
+	for (int32_t i = 0; i < 2; ++i) {
+		if (ids[i] != 0) {
+			Entity* e = this->level->getEntity(ids[i]);
+			if (e && e != this && e->isAlive() && e->getEntityTypeId() == myType && e->getCreatureBaseType() == 2) {
+				Animal* a = (Animal*)e;
+				if (!a->isBaby() && this->distanceToSqr(a) <= maxDistSq) {
+					if (!a->isSittingOrResting()) {
+						validPrimary = a;
+						break;
+					}
+					if (!validSecondary) {
+						validSecondary = a;
+					}
+				}
+			}
+		}
+	}
+	if (validPrimary) {
+		return validPrimary;
+	}
+	std::vector<Entity*> candidates;
+	AABB box{this->posX - maxRange, this->posY - 16.0f, this->posZ - maxRange, this->posX + maxRange, this->posY + 16.0f, this->posZ + maxRange};
+	this->level->getEntitiesOfType(myType, box, candidates);
+	Animal* bestActive = 0;
+	float bestActiveSq = maxDistSq;
+	Animal* bestAny = validSecondary;
+	float bestAnySq = validSecondary ? this->distanceToSqr(validSecondary) : maxDistSq;
+	for (size_t i = 0; i < candidates.size(); ++i) {
+		Entity* e = candidates[i];
+		if (!e || e == this || !e->isAlive() || e->getCreatureBaseType() != 2) {
+			continue;
+		}
+		Animal* cand = (Animal*)e;
+		if (cand->isBaby()) {
+			continue;
+		}
+		float dSq = this->distanceToSqr(cand);
+		if (dSq > maxDistSq) {
+			continue;
+		}
+		if (!cand->isSittingOrResting()) {
+			if (!bestActive || dSq < bestActiveSq) {
+				bestActive = cand;
+				bestActiveSq = dSq;
+			}
+		} else if (!bestAny || dSq < bestAnySq) {
+			bestAny = cand;
+			bestAnySq = dSq;
+		}
+	}
+	Animal* chosen = bestActive ? bestActive : bestAny;
+	if (chosen && chosen != validSecondary) {
+		this->familyParentId = chosen->entityId;
+	}
+	return chosen;
+}
+Animal* Animal::findSeparatedBaby(float maxRange, float* outDistSq) {
+	if (this->isBaby() || !this->level) {
+		return 0;
+	}
+	float maxDistSq = maxRange * maxRange;
+	int32_t myType = this->getEntityTypeId();
+	std::vector<Entity*> candidates;
+	AABB box{this->posX - maxRange, this->posY - 16.0f, this->posZ - maxRange, this->posX + maxRange, this->posY + 16.0f, this->posZ + maxRange};
+	this->level->getEntitiesOfType(myType, box, candidates);
+	Animal* bestOwn = 0;
+	float bestOwnDistSq = -1.0f;
+	Animal* bestWild = 0;
+	float bestWildDistSq = maxDistSq;
+	for (size_t i = 0; i < candidates.size(); ++i) {
+		Entity* e = candidates[i];
+		if (!e || e == this || !e->isAlive() || e->getCreatureBaseType() != 2) {
+			continue;
+		}
+		Animal* cand = (Animal*)e;
+		if (!cand->isBaby() || cand->isSittingOrResting()) {
+			continue;
+		}
+		float dSq = this->distanceToSqr(cand);
+		if (dSq > maxDistSq) {
+			continue;
+		}
+		if (cand->familyParentId == this->entityId || cand->familyCoParentId == this->entityId) {
+			if (!bestOwn || dSq > bestOwnDistSq) {
+				bestOwn = cand;
+				bestOwnDistSq = dSq;
+			}
+		} else if (cand->familyParentId == 0 && dSq <= 400.0f) {
+			if (!bestWild || dSq < bestWildDistSq) {
+				bestWild = cand;
+				bestWildDistSq = dSq;
+			}
+		}
+	}
+	if (bestOwn) {
+		if (outDistSq) *outDistSq = bestOwnDistSq;
+		return bestOwn;
+	}
+	if (bestWild) {
+		if (outDistSq) *outDistSq = bestWildDistSq;
+		return bestWild;
+	}
+	return 0;
+}
+Animal* Animal::getFamilyFollowTarget(float* outStartDistSq, float* outStopDistSq, float* outTeleportDistSq) {
+	if (!this->level || !this->isAlive() || this->isSittingOrResting()) {
+		return 0;
+	}
+	if (this->isBaby()) {
+		Animal* parent = this->findFamilyParent(48.0f);
+		if (!parent) {
+			return 0;
+		}
+		if (outStartDistSq) *outStartDistSq = 5.76f;
+		if (outStopDistSq) *outStopDistSq = 4.0f;
+		if (outTeleportDistSq) *outTeleportDistSq = parent->isSittingOrResting() ? 1024.0f : 784.0f;
+		return parent;
+	}
+	if (this->isFollowingOwner() || this->isInLove()) {
+		return 0;
+	}
+	Animal* baby = this->findSeparatedBaby(40.0f, 0);
+	if (!baby) {
+		return 0;
+	}
+	if (outStartDistSq) *outStartDistSq = 42.25f;
+	if (outStopDistSq) *outStopDistSq = 20.25f;
+	if (outTeleportDistSq) *outTeleportDistSq = 0.0f;
+	return baby;
+}
+bool_t Animal::isFamilyStrollAllowed(float tx, float ty, float tz) {
+	(void)ty;
+	if (!this->level) {
+		return 1;
+	}
+	if (this->isBaby()) {
+		Animal* parent = this->findFamilyParent(48.0f);
+		if (parent) {
+			float dx = tx - parent->posX;
+			float dz = tz - parent->posZ;
+			return (dx * dx + dz * dz) <= 20.25f;
+		}
+	} else {
+		Animal* baby = this->findSeparatedBaby(36.0f, 0);
+		if (baby) {
+			float dx = tx - baby->posX;
+			float dz = tz - baby->posZ;
+			return (dx * dx + dz * dz) <= 42.25f;
+		}
+	}
+	return 1;
+}
+bool_t Animal::navigateToEntity(Entity* target, float speedMult) {
+	if (!this->level || !target) {
+		return 0;
+	}
+	float dx = target->posX - this->posX;
+	float dy = target->posY - this->posY;
+	float dz = target->posZ - this->posZ;
+	float distSq = dx * dx + dy * dy + dz * dz;
+	float dist = sqrtf(distSq);
+	float stepX = target->posX;
+	float stepY = target->posY;
+	float stepZ = target->posZ;
+	if (dist > 14.0f) {
+		float scale = 12.0f / dist;
+		stepX = this->posX + dx * scale;
+		stepY = this->posY + dy * scale;
+		stepZ = this->posZ + dz * scale;
+	}
+	if (this->useNewAi()) {
+		PathNavigation* nav = this->getNavigation();
+		if (nav) {
+			if (dist <= 14.0f && target->isMob() && nav->moveTo((Mob*)target, speedMult)) {
+				return 1;
+			}
+			if (nav->moveTo(stepX, stepY, stepZ, speedMult)) {
+				return 1;
+			}
+		}
+		if (this->getMoveControl()) {
+			this->getMoveControl()->setWantedPosition(target->posX, target->posY, target->posZ, speedMult);
+		}
+		this->lookAt(target, 30.0f, 30.0f);
+		return 0;
+	}
+	Path* p = (dist <= 14.0f) ? this->level->findPath(this, target, 16.0f, 1, 0, 0, 1) : this->level->findPath(this, Mth::floor(stepX), Mth::floor(stepY), Mth::floor(stepZ), 16.0f, 1, 0, 0, 1);
+	this->setPath(p);
+	return p != 0;
+}
+void Animal::steerTowardsEntity(Entity* target, float speedMult, float turnRate) {
+	if (!target) {
+		return;
+	}
+	float dx = target->posX - this->posX;
+	float dz = target->posZ - this->posZ;
+	float desiredYaw = (atan2f(dz, dx) * (180.0f / 3.14159265f)) - 90.0f;
+	float diff = Mth::wrapDegrees(desiredYaw - this->yaw);
+	if (diff > turnRate) diff = turnRate;
+	if (diff < -turnRate) diff = -turnRate;
+	this->yaw = Mth::wrapDegrees(this->yaw + diff);
+	this->headYaw = this->yaw;
+	this->lookAt(target, 30.0f, 30.0f);
+	this->moveForward = this->getSpeed() * speedMult;
+	if (this->isCollidedHorizontally && (this->onGround || this->isInWater())) {
+		this->isJumping = 1;
+	}
+}
+void Animal::tryTeleportNear(Entity* target) {
+	if (!this->level || !target) {
+		return;
+	}
+	int32_t tx = Mth::floor(target->posX);
+	int32_t ty = Mth::floor(target->boundingBox.minY + 0.25f);
+	int32_t tz = Mth::floor(target->posZ);
+	bool_t allowWater = this->isWaterMob() || target->isInWater();
+	for (int32_t r = 1; r <= 3; ++r) {
+		for (int32_t dx = -r; dx <= r; ++dx) {
+			for (int32_t dz = -r; dz <= r; ++dz) {
+				if (abs(dx) < r && abs(dz) < r) {
+					continue;
+				}
+				for (int32_t dy = -1; dy <= 2; ++dy) {
+					int32_t bx = tx + dx;
+					int32_t by = ty + dy;
+					int32_t bz = tz + dz;
+					if (by <= 1 || by >= 126) {
+						continue;
+					}
+					int32_t tBelow = this->level->getTile(bx, by - 1, bz);
+					int32_t tAt = this->level->getTile(bx, by, bz);
+					int32_t tAbove = this->level->getTile(bx, by + 1, bz);
+					bool_t solidBelow = (tBelow > 0 && Tile::solid[tBelow]);
+					bool_t waterBelow = allowWater && (tBelow == Tile::water->blockID || tBelow == Tile::calmWater->blockID);
+					if (!solidBelow && !waterBelow) {
+						continue;
+					}
+					if ((tAt > 0 && Tile::solid[tAt]) || (tAbove > 0 && Tile::solid[tAbove])) {
+						continue;
+					}
+					if (tAt == Tile::lava->blockID || tAt == Tile::calmLava->blockID || tAbove == Tile::lava->blockID || tAbove == Tile::calmLava->blockID) {
+						continue;
+					}
+					if (!allowWater && (tAt == Tile::water->blockID || tAt == Tile::calmWater->blockID || tBelow == Tile::water->blockID || tBelow == Tile::calmWater->blockID)) {
+						continue;
+					}
+					this->moveTo((float)bx + 0.5f, (float)by, (float)bz + 0.5f, this->yaw, this->pitch);
+					this->fallDistance = 0.0f;
+					this->setPath(0);
+					if (this->useNewAi() && this->getNavigation()) {
+						this->getNavigation()->stop();
+					}
+					return;
+				}
+			}
+		}
+	}
+}
+void Animal::findRandomStrollLocation() {
+	float startDistSq = 0.0f;
+	Animal* familyTgt = this->getFamilyFollowTarget(&startDistSq, 0, 0);
+	if (familyTgt && this->distanceToSqr(familyTgt) > startDistSq) {
+		return;
+	}
+	float bestScore = -99999.0f;
+	int32_t bestX = -1;
+	int32_t bestY = -1;
+	int32_t bestZ = -1;
+	bool_t found = 0;
+	for (int32_t tries = 0; tries < 10; ++tries) {
+		int32_t cx = Mth::floor((this->posX + (float)(this->random.genrand_int32() % 13)) - 6.0f);
+		int32_t cy = Mth::floor((this->posY + (float)(this->random.genrand_int32() % 7)) - 3.0f);
+		int32_t cz = Mth::floor((this->posZ + (float)(this->random.genrand_int32() % 13)) - 6.0f);
+		if (!this->isFamilyStrollAllowed((float)cx + 0.5f, (float)cy, (float)cz + 0.5f)) {
+			continue;
+		}
+		float score = this->getWalkTargetValue(cx, cy, cz);
+		if (score > bestScore) {
+			bestScore = score;
+			bestX = cx;
+			bestY = cy;
+			bestZ = cz;
+			found = 1;
+		}
+	}
+	if (found) {
+		this->setPath(this->level->findPath(this, bestX, bestY, bestZ, 10.0f, 1, 0, 0, 1));
+	}
+}
+bool_t Animal::applyFamilyFollowAi() {
+	if (!this->level || this->useNewAi() || this->attackTarget != 0 || this->inPanicTicksMaybe > 0 || this->isSittingOrResting()) {
+		return 0;
+	}
+	float startDistSq = 0.0f;
+	float stopDistSq = 0.0f;
+	float teleportDistSq = 0.0f;
+	Animal* tgt = this->getFamilyFollowTarget(&startDistSq, &stopDistSq, &teleportDistSq);
+	if (!tgt) {
+		return 0;
+	}
+	float distSq = this->distanceToSqr(tgt);
+	if (teleportDistSq > 0.0f && distSq > teleportDistSq) {
+		this->tryTeleportNear(tgt);
+		return 1;
+	}
+	bool_t shouldMove = (distSq > startDistSq) || (this->path != 0 && distSq > stopDistSq);
+	if (!shouldMove) {
+		if (this->path) {
+			this->setPath(0);
+		}
+		return 0;
+	}
+	if (--this->familyRepathTicks <= 0 || !this->path) {
+		this->familyRepathTicks = 5;
+		this->navigateToEntity(tgt, distSq > 49.0f ? 1.2f : 1.0f);
+	}
+	if (!this->path || distSq > 196.0f) {
+		this->steerTowardsEntity(tgt, distSq > 49.0f ? 1.15f : 1.0f, 24.0f);
+		return 1;
+	}
+	return 0;
+}
+bool_t Animal::applyWaterFamilySwim(float* swimAngle, float* swimSpeed, float* swimTargetVy, int32_t* swimTimer, bool_t preferSurface) {
+	if (!this->level || this->isSittingOrResting()) {
+		return 0;
+	}
+	float startDistSq = 0.0f;
+	float stopDistSq = 0.0f;
+	float teleportDistSq = 0.0f;
+	Animal* tgt = this->getFamilyFollowTarget(&startDistSq, &stopDistSq, &teleportDistSq);
+	if (!tgt) {
+		return 0;
+	}
+	float distSq = this->distanceToSqr(tgt);
+	if (teleportDistSq > 0.0f && distSq > teleportDistSq) {
+		this->tryTeleportNear(tgt);
+		return 1;
+	}
+	if (distSq <= startDistSq) {
+		return 0;
+	}
+	float dx = tgt->posX - this->posX;
+	float dz = tgt->posZ - this->posZ;
+	*swimAngle = (atan2f(dz, dx) * (180.0f / 3.14159265f)) - 90.0f;
+	*swimSpeed = (distSq > 49.0f) ? 0.115f : 0.088f;
+	float dy = (tgt->posY + (preferSurface ? 0.2f : 0.0f)) - this->posY;
+	*swimTargetVy = Mth::clamp(dy * 0.04f, -0.045f, 0.045f);
+	*swimTimer = 8;
+	if (this->isCollidedHorizontally && !tgt->isInWater()) {
+		this->motionY = 0.24f;
+	}
+	return 1;
 }
 bool_t Animal::isFood(const ItemInstance* a2) {
 	return a2->getId() == Item::wheat->itemID;

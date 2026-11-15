@@ -327,6 +327,9 @@ LABEL_67:
 bool_t UnifiedTurnBuild::tickBuild(Player* a2, BuildActionIntention* a3) {
 	this->field_10C = a2;
 	if(this->field_120 == 3) {
+		if(this->field_11C && a2 && a2->isRiding() && !a2->isUsingItem()) {
+			return 0;
+		}
 		if(this->field_11C && a2->isUsingItem()) {
 			a3->field_0 = this->field_11E ? 16 : 18;
 			return 1;

@@ -431,15 +431,35 @@ void Fox::updateAi() {
 
 	if (this->isInWater() && this->level) {
 		Entity* swimTarget = 0;
+		bool_t isFamilySwim = 0;
+		float familyStopSq = 3.0f;
 		if (this->attackTarget != 0) {
 			Entity* tgt = this->level->getEntity(this->attackTarget);
 			if (tgt && tgt->isAlive()) {
 				swimTarget = tgt;
 			}
-		} else if (this->isTame && this->fleeTicks <= 0) {
+		} else if (this->isTame && this->fleeTicks <= 0 && (!this->isBaby() || !this->findFamilyParent(48.0f))) {
 			Player* owner = this->resolveOwner();
 			if (owner && owner->isAlive()) {
 				swimTarget = owner;
+			}
+		}
+		if (!swimTarget && this->fleeTicks <= 0) {
+			float startSq = 0.0f;
+			float stopSq = 0.0f;
+			float tpSq = 0.0f;
+			Animal* fam = this->getFamilyFollowTarget(&startSq, &stopSq, &tpSq);
+			if (fam) {
+				float famDistSq = this->distanceToSqr(fam);
+				if (tpSq > 0.0f && famDistSq > tpSq) {
+					this->tryTeleportNear(fam);
+					return;
+				}
+				if (famDistSq > startSq) {
+					swimTarget = fam;
+					isFamilySwim = 1;
+					familyStopSq = stopSq;
+				}
 			}
 		}
 		if (swimTarget) {
@@ -452,7 +472,7 @@ void Fox::updateAi() {
 			float dz = swimTarget->posZ - this->posZ;
 			float horizDistSq = dx * dx + dz * dz;
 			float distSq = swimTarget->distanceToSqr(this);
-			float stopDistSq = (this->attackTarget != 0) ? 1.5f : (swimTarget->isInWater() ? 9.0f : 3.0f);
+			float stopDistSq = (this->attackTarget != 0) ? 1.5f : (isFamilySwim ? familyStopSq : (swimTarget->isInWater() ? 9.0f : 3.0f));
 			this->yaw = steerFoxYawToward(this->yaw, dx, dz, 16.0f);
 			if (this->isCollidedHorizontally && horizDistSq > stopDistSq) {
 				float rad = this->yaw * (3.14159265f / 180.0f);
@@ -502,7 +522,7 @@ void Fox::updateAi() {
 			if (tgt && tgt->isAlive()) {
 				directTgt = tgt;
 			}
-		} else if (this->attackTarget == 0) {
+		} else if (this->attackTarget == 0 && (!this->isBaby() || !this->findFamilyParent(48.0f))) {
 			Player* owner = this->resolveOwner();
 			if (owner && owner->isAlive()) {
 				float distSq = owner->distanceToSqr(this);
@@ -867,6 +887,19 @@ void Fox::aiStep() {
 
 	if (this->isFoxSleeping) {
 		bool_t wakeUp = (this->isInWater() || this->fleeTicks > 0 || this->attackTarget != 0 || this->isInLove() || temptPlayer != 0);
+		if (!wakeUp && this->isBaby()) {
+			Animal* parent = this->findFamilyParent(48.0f);
+			if (parent && (this->distanceToSqr(parent) > 25.0f || parent->isInWater())) {
+				wakeUp = 1;
+			}
+		}
+		if (!wakeUp && !this->isBaby() && !this->isFoxSitting && !this->isTame) {
+			float babyDistSq = 0.0f;
+			Animal* baby = this->findSeparatedBaby(40.0f, &babyDistSq);
+			if (baby && babyDistSq > 49.0f) {
+				wakeUp = 1;
+			}
+		}
 		if (!wakeUp && this->isTame) {
 			Player* owner = this->resolveOwner();
 			if (owner && owner->isAlive() && (owner->distanceToSqr(this) > 36.0f || owner->isInWater())) {
@@ -887,6 +920,12 @@ void Fox::aiStep() {
 		}
 	} else if (!this->isFoxSitting && !this->isInWater() && this->onGround && this->fleeTicks <= 0 && this->attackTarget == 0 && !this->isInLove() && !temptPlayer) {
 		bool_t canLieDown = 1;
+		if (this->isBaby()) {
+			Animal* parent = this->findFamilyParent(48.0f);
+			if (parent && (this->distanceToSqr(parent) > 20.25f || parent->isInWater())) {
+				canLieDown = 0;
+			}
+		}
 		if (this->isTame) {
 			Player* owner = this->resolveOwner();
 			if (owner && owner->isAlive() && (owner->distanceToSqr(this) > 25.0f || owner->isInWater())) {
@@ -1231,7 +1270,17 @@ void Fox::addAdditonalSaveData(CompoundTag* tag) {
 }
 
 bool_t Fox::removeWhenFarAway() {
-	return !this->isTame;
+	return !this->isTame && Animal::removeWhenFarAway();
+}
+bool_t Fox::isSittingOrResting() {
+	return this->isFoxSitting || this->isFoxSleeping;
+}
+bool_t Fox::isFollowingOwner() {
+	if (this->isFoxSitting || this->isFoxSleeping || !this->isTame || this->fleeTicks > 0 || this->attackTarget != 0) {
+		return 0;
+	}
+	Player* owner = this->resolveOwner();
+	return owner && owner->isAlive() && owner->distanceToSqr(this) > 16.0f;
 }
 
 Mob* Fox::getBreedOffspring(Animal*) {

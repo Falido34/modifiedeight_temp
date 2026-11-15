@@ -1,4 +1,5 @@
 #include <entity/PathfinderMob.hpp>
+#include <entity/Animal.hpp>
 #include <entity/path/Path.hpp>
 #include <entity/Player.hpp>
 #include <level/Level.hpp>
@@ -111,6 +112,11 @@ void PathfinderMob::updateAi() {
 	v11 = this->isInLava();
 	this->pitch = this->pitch * 0.85f;
 	v12 = v11;
+	if(this->getCreatureBaseType() == 2 && !this->useNewAi()) {
+		if(((Animal*)this)->applyFamilyFollowAi()) {
+			return;
+		}
+	}
 	if(this->path && this->random.genrand_int32() % 100) {
 		Vec3 v34 = this->path->currentPos(this);
 		v30 = this->entityWidth + this->entityWidth;

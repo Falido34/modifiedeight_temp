@@ -1,5 +1,8 @@
 #include <tile/LiquidTileDynamic.hpp>
 #include <level/Level.hpp>
+#include <level/LightLayer.hpp>
+#include <level/biome/Biome.hpp>
+#include <tile/Tile.hpp>
 #include <tile/material/Material.hpp>
 #include <level/dimension/Dimension.hpp>
 
@@ -178,12 +181,18 @@ bool_t LiquidTileDynamic::isWaterBlocking(Level* level, int32_t x, int32_t y, in
 	}
 }
 void LiquidTileDynamic::setStatic(Level* level, int32_t x, int32_t y, int32_t z) {
-	int32_t v9; // r0
+	int32_t v9;
 
 	v9 = level->getData(x, y, z);
 	level->setTileAndDataNoUpdate(x, y, z, this->blockID + 1, v9);
 	level->setTilesDirty(x, y, z, x, y, z);
 	level->sendTileUpdated(x, y, z);
+	if(!level->isClientMaybe && this->material == Material::water && v9 == 0) {
+		Biome* b = level->getBiome(x, z);
+		if(b == Biome::tundra || b == Biome::icePeaks || b == Biome::iceDesert) {
+			level->addToTickNextTick(x, y, z, this->blockID + 1, 15 + (level->random.genrand_int32() % 15));
+		}
+	}
 }
 void LiquidTileDynamic::trySpreadTo(Level* level, int32_t x, int32_t y, int32_t z, int32_t a6) {
 	int32_t v10; 
@@ -224,6 +233,19 @@ void LiquidTileDynamic::tick(Level* level, int32_t x, int32_t y, int32_t z, Rand
 	int32_t spreadAdder; // [sp+20h] [bp-38h]
 
 	depth = this->getDepth(level, x, y, z);
+	if(!level->isClientMaybe && this->material == Material::water && depth == 0) {
+		Biome* b = level->getBiome(x, z);
+		if((b == Biome::tundra || b == Biome::icePeaks || b == Biome::iceDesert) && level->getBrightness(LightLayer::Block, x, y, z) < 10) {
+			int32_t above = (y + 1 < 128) ? level->getTile(x, y + 1, z) : 0;
+			if(y + 1 >= 128 || above == 0 || (Tile::topSnow && above == Tile::topSnow->blockID) || (Tile::ice && above == Tile::ice->blockID)) {
+				level->setTileAndData(x, y, z, Tile::ice->blockID, 0, 3);
+				if(Tile::topSnow && above == Tile::topSnow->blockID) {
+					level->setTileAndData(x, y + 1, z, 0, 0, 3);
+				}
+				return;
+			}
+		}
+	}
 	if(this->material == Material::lava) {
 		if(level->dimensionPtr->isOverworldMaybe) {
 			v10 = 1;

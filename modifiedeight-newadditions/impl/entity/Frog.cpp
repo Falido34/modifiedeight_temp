@@ -76,48 +76,54 @@ void Frog::updateAi() {
 		if (this->swimTimer > 0) {
 			--this->swimTimer;
 		}
-		if (this->swimTimer <= 0 || this->isCollidedHorizontally || (this->random.genrand_int32() % 45) == 0) {
-			if (this->isCollidedHorizontally) {
-				this->swimAngle = Mth::wrapDegrees(this->swimAngle + 115.0f + this->random.nextFloat() * 130.0f);
-			} else {
-				this->swimAngle = Mth::wrapDegrees(this->swimAngle + (this->random.nextFloat() - 0.5f) * 140.0f);
+		bool_t familySwimming = this->applyWaterFamilySwim(&this->swimAngle, &this->swimSpeed, &this->swimTargetVy, &this->swimTimer, 1);
+		if (!familySwimming) {
+			if (this->swimTimer <= 0 || this->isCollidedHorizontally || (this->random.genrand_int32() % 45) == 0) {
+				if (this->isCollidedHorizontally) {
+					this->swimAngle = Mth::wrapDegrees(this->swimAngle + 115.0f + this->random.nextFloat() * 130.0f);
+				} else {
+					this->swimAngle = Mth::wrapDegrees(this->swimAngle + (this->random.nextFloat() - 0.5f) * 140.0f);
+				}
+				this->swimSpeed = 0.055f + this->random.nextFloat() * 0.045f;
+				this->swimTargetVy = (this->random.nextFloat() - 0.48f) * 0.032f;
+				this->swimTimer = 25 + (this->random.genrand_int32() % 45);
 			}
-			this->swimSpeed = 0.055f + this->random.nextFloat() * 0.045f;
-			this->swimTargetVy = (this->random.nextFloat() - 0.48f) * 0.032f;
-			this->swimTimer = 25 + (this->random.genrand_int32() % 45);
-		}
 
-		float rad = this->swimAngle * (float)(3.14159265 / 180.0);
-		int32_t curY = Mth::floor(this->posY + 0.25f);
-		int32_t aheadX = Mth::floor(this->posX - Mth::sin(rad) * 1.6f);
-		int32_t aheadZ = Mth::floor(this->posZ + Mth::cos(rad) * 1.6f);
-		if (!isFrogWaterAt(this->level, aheadX, curY, aheadZ)) {
-			float leftAngle = Mth::wrapDegrees(this->swimAngle - 65.0f);
-			float rightAngle = Mth::wrapDegrees(this->swimAngle + 65.0f);
-			float lRad = leftAngle * (float)(3.14159265 / 180.0);
-			float rRad = rightAngle * (float)(3.14159265 / 180.0);
-			bool_t hasLeft = isFrogWaterAt(this->level, Mth::floor(this->posX - Mth::sin(lRad) * 1.6f), curY, Mth::floor(this->posZ + Mth::cos(lRad) * 1.6f));
-			bool_t hasRight = isFrogWaterAt(this->level, Mth::floor(this->posX - Mth::sin(rRad) * 1.6f), curY, Mth::floor(this->posZ + Mth::cos(rRad) * 1.6f));
-			if (hasLeft && !hasRight) {
-				this->swimAngle = leftAngle;
-			} else if (hasRight && !hasLeft) {
-				this->swimAngle = rightAngle;
-			} else {
-				this->swimAngle = Mth::wrapDegrees(this->swimAngle + ((this->random.genrand_int32() & 1) ? 145.0f : -145.0f));
+			float rad = this->swimAngle * (float)(3.14159265 / 180.0);
+			int32_t curY = Mth::floor(this->posY + 0.25f);
+			int32_t aheadX = Mth::floor(this->posX - Mth::sin(rad) * 1.6f);
+			int32_t aheadZ = Mth::floor(this->posZ + Mth::cos(rad) * 1.6f);
+			if (!isFrogWaterAt(this->level, aheadX, curY, aheadZ)) {
+				float leftAngle = Mth::wrapDegrees(this->swimAngle - 65.0f);
+				float rightAngle = Mth::wrapDegrees(this->swimAngle + 65.0f);
+				float lRad = leftAngle * (float)(3.14159265 / 180.0);
+				float rRad = rightAngle * (float)(3.14159265 / 180.0);
+				bool_t hasLeft = isFrogWaterAt(this->level, Mth::floor(this->posX - Mth::sin(lRad) * 1.6f), curY, Mth::floor(this->posZ + Mth::cos(lRad) * 1.6f));
+				bool_t hasRight = isFrogWaterAt(this->level, Mth::floor(this->posX - Mth::sin(rRad) * 1.6f), curY, Mth::floor(this->posZ + Mth::cos(rRad) * 1.6f));
+				if (hasLeft && !hasRight) {
+					this->swimAngle = leftAngle;
+				} else if (hasRight && !hasLeft) {
+					this->swimAngle = rightAngle;
+				} else {
+					this->swimAngle = Mth::wrapDegrees(this->swimAngle + ((this->random.genrand_int32() & 1) ? 145.0f : -145.0f));
+				}
+				this->swimTimer = 20;
 			}
-			this->swimTimer = 20;
 		}
 
 		bool_t waterAbove = isFrogWaterAt(this->level, Mth::floor(this->posX), Mth::floor(this->posY + 0.7f), Mth::floor(this->posZ));
 		bool_t waterBelow = isFrogWaterAt(this->level, Mth::floor(this->posX), Mth::floor(this->posY - 0.5f), Mth::floor(this->posZ));
-		if (!waterAbove && this->swimTargetVy > -0.004f) {
-			this->swimTargetVy = -0.015f;
-		} else if (!waterBelow && this->swimTargetVy < 0.005f) {
-			this->swimTargetVy = 0.022f;
+		if (!familySwimming) {
+			if (!waterAbove && this->swimTargetVy > -0.004f) {
+				this->swimTargetVy = -0.015f;
+			} else if (!waterBelow && this->swimTargetVy < 0.005f) {
+				this->swimTargetVy = 0.022f;
+			}
 		}
 
 		float diff = Mth::wrapDegrees(this->swimAngle - this->yaw);
-		this->yaw = Mth::wrapDegrees(this->yaw + Mth::clamp(diff * 0.14f, -8.5f, 8.5f));
+		float maxTurn = familySwimming ? 14.0f : 8.5f;
+		this->yaw = Mth::wrapDegrees(this->yaw + Mth::clamp(diff * (familySwimming ? 0.24f : 0.14f), -maxTurn, maxTurn));
 		this->pitch = 0.0f;
 		return;
 	}
@@ -182,7 +188,7 @@ bool_t Frog::canSpawn() {
 }
 
 bool_t Frog::removeWhenFarAway() {
-	return !this->isInLove() && this->getAge() == 0;
+	return !this->isInLove() && this->getAge() == 0 && Animal::removeWhenFarAway();
 }
 
 int32_t Frog::getMaxSpawnClusterSize() {

@@ -330,6 +330,7 @@ void Minecraft::handleBuildAction(struct BuildActionIntention* a2) {
 			InteractPacket v23_(v17, v18, 1);
 			this->rakNetInstance->send(v23_);
 			this->gameMode->interact((Player*)this->player, (Entity*)this->selectedObject.entity);
+			this->field_D0C = 8;
 			return;
 		}
 		if(hitType) {

@@ -6,6 +6,7 @@ struct Wolf: Animal {
 	bool_t isAngry;
 	bool_t isTame;
 	bool_t isSitting;
+	bool_t resumeSitOnLand;
 	bool_t isInterested;
 	int32_t angerTicks;
 	int32_t pacifiedTicks;
@@ -47,5 +48,7 @@ struct Wolf: Animal {
 	virtual void readAdditionalSaveData(CompoundTag*);
 	virtual void addAdditonalSaveData(CompoundTag*);
 	virtual bool_t removeWhenFarAway();
+	virtual bool_t isSittingOrResting();
+	virtual bool_t isFollowingOwner();
 	virtual Mob* getBreedOffspring(Animal*);
 };

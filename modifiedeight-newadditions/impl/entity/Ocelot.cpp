@@ -371,15 +371,35 @@ void Ocelot::updateAi() {
 
 	if (this->isInWater() && this->level) {
 		Entity* swimTarget = 0;
+		bool_t isFamilySwim = 0;
+		float familyStopSq = 3.0f;
 		if (this->attackTarget != 0) {
 			Entity* tgt = this->level->getEntity(this->attackTarget);
 			if (tgt && tgt->isAlive()) {
 				swimTarget = tgt;
 			}
-		} else if (this->isTrusting) {
+		} else if (this->isTrusting && (!this->isBaby() || !this->findFamilyParent(48.0f))) {
 			Player* owner = this->resolveOwner();
 			if (owner && owner->isAlive()) {
 				swimTarget = owner;
+			}
+		}
+		if (!swimTarget) {
+			float startSq = 0.0f;
+			float stopSq = 0.0f;
+			float tpSq = 0.0f;
+			Animal* fam = this->getFamilyFollowTarget(&startSq, &stopSq, &tpSq);
+			if (fam) {
+				float famDistSq = this->distanceToSqr(fam);
+				if (tpSq > 0.0f && famDistSq > tpSq) {
+					this->tryTeleportNear(fam);
+					return;
+				}
+				if (famDistSq > startSq) {
+					swimTarget = fam;
+					isFamilySwim = 1;
+					familyStopSq = stopSq;
+				}
 			}
 		}
 		if (swimTarget) {
@@ -392,7 +412,7 @@ void Ocelot::updateAi() {
 			float dz = swimTarget->posZ - this->posZ;
 			float horizDistSq = dx * dx + dz * dz;
 			float distSq = swimTarget->distanceToSqr(this);
-			float stopDistSq = (this->attackTarget != 0) ? 1.5f : (swimTarget->isInWater() ? 9.0f : 3.0f);
+			float stopDistSq = (this->attackTarget != 0) ? 1.5f : (isFamilySwim ? familyStopSq : (swimTarget->isInWater() ? 9.0f : 3.0f));
 			this->yaw = steerOcelotYawToward(this->yaw, dx, dz, 16.0f);
 			if (this->isCollidedHorizontally && horizDistSq > stopDistSq) {
 				float rad = this->yaw * (3.14159265f / 180.0f);
@@ -442,7 +462,7 @@ void Ocelot::updateAi() {
 			if (tgt && tgt->isAlive()) {
 				directTgt = tgt;
 			}
-		} else if (this->attackTarget == 0) {
+		} else if (this->attackTarget == 0 && (!this->isBaby() || !this->findFamilyParent(48.0f))) {
 			Player* owner = this->resolveOwner();
 			if (owner && owner->isAlive()) {
 				float distSq = owner->distanceToSqr(this);
@@ -987,7 +1007,17 @@ bool_t Ocelot::canSpawn() {
 }
 
 bool_t Ocelot::removeWhenFarAway() {
-	return !this->isTrusting;
+	return !this->isTrusting && Animal::removeWhenFarAway();
+}
+bool_t Ocelot::isSittingOrResting() {
+	return this->isSitting;
+}
+bool_t Ocelot::isFollowingOwner() {
+	if (this->isSitting || !this->isTrusting || this->attackTarget != 0) {
+		return 0;
+	}
+	Player* owner = this->resolveOwner();
+	return owner && owner->isAlive() && owner->distanceToSqr(this) > 16.0f;
 }
 
 Mob* Ocelot::getBreedOffspring(Animal* mate) {

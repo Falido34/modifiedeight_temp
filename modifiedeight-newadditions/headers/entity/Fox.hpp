@@ -52,5 +52,7 @@ struct Fox: Animal {
 	virtual void addAdditonalSaveData(CompoundTag*);
 	virtual bool_t canSpawn();
 	virtual bool_t removeWhenFarAway();
+	virtual bool_t isSittingOrResting();
+	virtual bool_t isFollowingOwner();
 	virtual Mob* getBreedOffspring(Animal*);
 };

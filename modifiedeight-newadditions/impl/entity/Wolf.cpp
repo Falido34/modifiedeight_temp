@@ -24,6 +24,7 @@ Wolf::Wolf(Level* level)
 	this->isAngry = 0;
 	this->isTame = 0;
 	this->isSitting = 0;
+	this->resumeSitOnLand = 0;
 	this->isInterested = 0;
 	this->angerTicks = 0;
 	this->pacifiedTicks = 0;
@@ -324,17 +325,165 @@ void Wolf::updateAi() {
 		}
 		return;
 	}
+	if (this->resumeSitOnLand && this->level) {
+		this->setPath(0);
+		this->attackTarget = 0;
+		if (!this->isInWater() && !this->isUnderLiquid(Material::water) && this->onGround) {
+			int32_t fx = Mth::floor(this->posX);
+			int32_t fy = Mth::floor(this->boundingBox.minY + 0.1f);
+			int32_t fz = Mth::floor(this->posZ);
+			Material* underMat = this->level->getMaterial(fx, fy - 1, fz);
+			Material* atMat = this->level->getMaterial(fx, fy, fz);
+			bool_t drySupport = ((underMat && underMat->blocksMotion() && !underMat->isLiquid()) || (atMat && atMat->blocksMotion() && !atMat->isLiquid())) ? 1 : 0;
+			bool_t dryAtFeet = (!atMat || !atMat->isLiquid()) ? 1 : 0;
+			if (drySupport && dryAtFeet) {
+				this->resumeSitOnLand = 0;
+				this->isSitting = 1;
+				this->moveForward = 0.0f;
+				this->moveStrafe = 0.0f;
+				this->isJumping = 0;
+				this->motionX = 0.0f;
+				this->motionZ = 0.0f;
+				this->updateSynchedFlags();
+				return;
+			}
+		}
+		int32_t wx = Mth::floor(this->posX);
+		int32_t wy = Mth::floor(this->boundingBox.minY + 0.25f);
+		int32_t wz = Mth::floor(this->posZ);
+		int32_t surfY = wy;
+		for (int32_t y = wy; y < 126; ++y) {
+			Material* m = this->level->getMaterial(wx, y, wz);
+			if (m && m->isLiquid()) {
+				surfY = y + 1;
+			} else {
+				break;
+			}
+		}
+		bool_t foundLand = 0;
+		float bestScore = 1e9f;
+		int32_t bestX = wx;
+		int32_t bestZ = wz;
+		int32_t minCheckY = surfY - 3;
+		if (minCheckY < 1) minCheckY = 1;
+		int32_t maxCheckY = surfY + 3;
+		if (maxCheckY > 126) maxCheckY = 126;
+		for (int32_t r = 0; r <= 24; ++r) {
+			if (foundLand && (float)(r * r) > bestScore) {
+				break;
+			}
+			for (int32_t dx = -r; dx <= r; ++dx) {
+				for (int32_t dz = -r; dz <= r; ++dz) {
+					int32_t adx = (dx < 0) ? -dx : dx;
+					int32_t adz = (dz < 0) ? -dz : dz;
+					if (r > 0 && adx != r && adz != r) {
+						continue;
+					}
+					int32_t cx = wx + dx;
+					int32_t cz = wz + dz;
+					float fxDiff = (float)cx + 0.5f - this->posX;
+					float fzDiff = (float)cz + 0.5f - this->posZ;
+					float distSq = fxDiff * fxDiff + fzDiff * fzDiff;
+					if (distSq >= bestScore) {
+						continue;
+					}
+					for (int32_t cy = minCheckY; cy <= maxCheckY; ++cy) {
+						Material* mBelow = this->level->getMaterial(cx, cy - 1, cz);
+						if (!mBelow || !mBelow->blocksMotion() || mBelow->isLiquid()) {
+							continue;
+						}
+						Material* mAt = this->level->getMaterial(cx, cy, cz);
+						if (mAt && (mAt->blocksMotion() || mAt->isLiquid())) {
+							continue;
+						}
+						Material* mAbove = this->level->getMaterial(cx, cy + 1, cz);
+						if (mAbove && (mAbove->blocksMotion() || mAbove->isLiquid())) {
+							continue;
+						}
+						int32_t cyDiff = cy - surfY;
+						float penalty = (cy > surfY) ? 250.0f : (float)((cyDiff < 0) ? -cyDiff : cyDiff) * 2.0f;
+						float score = distSq + penalty;
+						if (!foundLand || score < bestScore) {
+							foundLand = 1;
+							bestScore = score;
+							bestX = cx;
+							bestZ = cz;
+						}
+					}
+				}
+			}
+		}
+		this->moveStrafe = 0.0f;
+		this->isJumping = 0;
+		if (foundLand) {
+			float dx = (float)bestX + 0.5f - this->posX;
+			float dz = (float)bestZ + 0.5f - this->posZ;
+			this->yaw = steerWolfYawToward(this->yaw, dx, dz, 24.0f);
+			if (this->isCollidedHorizontally && this->isInWater()) {
+				float rad = this->yaw * (3.14159265f / 180.0f);
+				int32_t by = Mth::floor(this->boundingBox.minY + 0.55f);
+				int32_t bx = Mth::floor(this->posX - Mth::sin(rad) * 0.75f);
+				int32_t bz = Mth::floor(this->posZ + Mth::cos(rad) * 0.75f);
+				int32_t tLow = this->level->getTile(bx, by, bz);
+				int32_t tHigh = this->level->getTile(bx, by + 1, bz);
+				if (tLow > 0 && Tile::solid[tLow] && tHigh > 0 && Tile::solid[tHigh]) {
+					float leftYaw = Mth::wrapDegrees(this->yaw - 55.0f);
+					float rightYaw = Mth::wrapDegrees(this->yaw + 55.0f);
+					float lRad = leftYaw * (3.14159265f / 180.0f);
+					float rRad = rightYaw * (3.14159265f / 180.0f);
+					int32_t lLow = this->level->getTile(Mth::floor(this->posX - Mth::sin(lRad) * 0.9f), by, Mth::floor(this->posZ + Mth::cos(lRad) * 0.9f));
+					int32_t rLow = this->level->getTile(Mth::floor(this->posX - Mth::sin(rRad) * 0.9f), by, Mth::floor(this->posZ + Mth::cos(rRad) * 0.9f));
+					bool_t leftBlocked = (lLow > 0 && Tile::solid[lLow]);
+					bool_t rightBlocked = (rLow > 0 && Tile::solid[rLow]);
+					if (!leftBlocked && rightBlocked) {
+						this->yaw = leftYaw;
+					} else if (!rightBlocked && leftBlocked) {
+						this->yaw = rightYaw;
+					} else {
+						this->yaw = ((this->entityId & 1) ? leftYaw : rightYaw);
+					}
+				}
+			} else if (this->isCollidedHorizontally && !this->isInWater()) {
+				this->isJumping = 1;
+			}
+			this->headYaw = this->yaw;
+			this->moveForward = this->isInWater() ? 1.15f : this->getSpeed();
+		} else {
+			this->moveForward = 0.0f;
+		}
+		return;
+	}
 	if (this->isInWater() && this->level) {
 		Entity* swimTarget = 0;
+		bool_t isFamilySwim = 0;
+		float familyStopSq = 3.0f;
 		if (this->attackTarget != 0) {
 			Entity* tgt = this->level->getEntity(this->attackTarget);
 			if (tgt && tgt->isAlive()) {
 				swimTarget = tgt;
 			}
-		} else if (this->isTame) {
+		} else if (this->isTame && (!this->isBaby() || !this->findFamilyParent(48.0f))) {
 			Player* owner = this->resolveOwner();
 			if (owner && owner->isAlive()) {
 				swimTarget = owner;
+			}
+		}
+		if (!swimTarget) {
+			float startSq = 0.0f;
+			float stopSq = 0.0f;
+			float tpSq = 0.0f;
+			Animal* fam = this->getFamilyFollowTarget(&startSq, &stopSq, &tpSq);
+			if (fam) {
+				float famDistSq = this->distanceToSqr(fam);
+				if (tpSq > 0.0f && famDistSq > tpSq) {
+					this->tryTeleportNear(fam);
+					return;
+				}
+				if (famDistSq > startSq) {
+					swimTarget = fam;
+					isFamilySwim = 1;
+					familyStopSq = stopSq;
+				}
 			}
 		}
 		if (swimTarget) {
@@ -347,7 +496,7 @@ void Wolf::updateAi() {
 			float dz = swimTarget->posZ - this->posZ;
 			float horizDistSq = dx * dx + dz * dz;
 			float distSq = swimTarget->distanceToSqr(this);
-			float stopDistSq = (this->attackTarget != 0) ? 1.5f : (swimTarget->isInWater() ? 9.0f : 3.0f);
+			float stopDistSq = (this->attackTarget != 0) ? 1.5f : (isFamilySwim ? familyStopSq : (swimTarget->isInWater() ? 9.0f : 3.0f));
 			this->yaw = steerWolfYawToward(this->yaw, dx, dz, 16.0f);
 			if (this->isCollidedHorizontally && horizDistSq > stopDistSq) {
 				float rad = this->yaw * (3.14159265f / 180.0f);
@@ -395,7 +544,7 @@ void Wolf::updateAi() {
 			if (tgt && tgt->isAlive()) {
 				directTgt = tgt;
 			}
-		} else if (this->attackTarget == 0) {
+		} else if (this->attackTarget == 0 && (!this->isBaby() || !this->findFamilyParent(48.0f))) {
 			Player* owner = this->resolveOwner();
 			if (owner && owner->isAlive()) {
 				float distSq = owner->distanceToSqr(this);
@@ -453,7 +602,7 @@ void Wolf::travel(float strafe, float forward) {
 				wy = Mth::floor(this->posY + 0.45f);
 			}
 			int32_t topWaterY = -1;
-			for (int32_t step = 0; step < 8 && wy < 127; ++step, ++wy) {
+			for (int32_t step = 0; step < 32 && wy < 127; ++step, ++wy) {
 				if (this->level->getMaterial(ix, wy, iz) == Material::water) {
 					topWaterY = wy;
 				} else if (topWaterY >= 0) {
@@ -464,12 +613,13 @@ void Wolf::travel(float strafe, float forward) {
 				int32_t wdata = this->level->getData(ix, topWaterY, iz);
 				float fill = (wdata >= 8) ? 1.0f : (1.0f - (float)(wdata + 1) / 9.0f);
 				float surfaceY = (float)topWaterY + fill;
-				float targetY = surfaceY - 0.52f + Mth::sin((float)this->field_D8 * 0.24f) * 0.012f;
+				Material* aboveTop = this->level->getMaterial(ix, topWaterY + 1, iz);
+				float targetY = (aboveTop && aboveTop->blocksMotion()) ? ((float)topWaterY + 0.1f) : (surfaceY - 0.52f + Mth::sin((float)this->field_D8 * 0.24f) * 0.012f);
 				float dy = targetY - this->posY;
-				float wantVy = Mth::clamp(dy * 0.35f, -0.07f, 0.18f);
+				float wantVy = (dy > 0.6f) ? Mth::clamp(dy * 0.45f, 0.10f, 0.22f) : Mth::clamp(dy * 0.35f, -0.07f, 0.18f);
 				this->motionY += (wantVy - this->motionY) * 0.35f;
 			} else {
-				this->motionY = (this->motionY * 0.85f) + 0.02f;
+				this->motionY = (this->motionY * 0.85f) + 0.04f;
 			}
 		}
 
@@ -481,13 +631,17 @@ void Wolf::travel(float strafe, float forward) {
 		if (!this->isSitting && this->isCollidedHorizontally && targetSpeed > 0.01f) {
 			int32_t bx = Mth::floor(this->posX - Mth::sin(yawRad) * 0.7f);
 			int32_t bz = Mth::floor(this->posZ + Mth::cos(yawRad) * 0.7f);
-			int32_t by = Mth::floor(this->boundingBox.minY + 0.45f);
+			int32_t by = Mth::floor(this->boundingBox.minY + 0.1f);
 			int32_t tAhead = this->level->getTile(bx, by, bz);
+			if (tAhead <= 0 || !Tile::solid[tAhead]) {
+				by = Mth::floor(this->boundingBox.minY + 0.65f);
+				tAhead = this->level->getTile(bx, by, bz);
+			}
 			int32_t tAbove = this->level->getTile(bx, by + 1, bz);
 			bool_t solidAhead = (tAhead > 0 && Tile::solid[tAhead]);
 			bool_t passableAbove = (tAbove <= 0 || !Tile::solid[tAbove]);
 			if (solidAhead && passableAbove) {
-				this->motionY = 0.32f;
+				this->motionY = 0.36f;
 			} else {
 				this->motionY = 0.08f;
 			}
@@ -498,6 +652,13 @@ void Wolf::travel(float strafe, float forward) {
 }
 
 void Wolf::aiStep() {
+	if (this->level && !this->level->isClientMaybe && this->isTame && this->isSitting && (this->isInWater() || this->isUnderLiquid(Material::water))) {
+		this->isSitting = 0;
+		this->resumeSitOnLand = 1;
+		this->setPath(0);
+		this->attackTarget = 0;
+		this->updateSynchedFlags();
+	}
 	Animal::aiStep();
 	if (!this->level) {
 		return;
@@ -541,7 +702,7 @@ void Wolf::aiStep() {
 		this->isInterested = wantInterested;
 		this->updateSynchedFlags();
 	}
-	if (temptPlayer && !this->isSitting && this->attackTarget == 0 && !this->isInLove()) {
+	if (temptPlayer && !this->isSitting && !this->resumeSitOnLand && this->attackTarget == 0 && !this->isInLove()) {
 		float dSq = temptPlayer->distanceToSqr(this);
 		if (dSq > 5.0f) {
 			if (this->repathTicks > 0) {
@@ -582,7 +743,7 @@ void Wolf::aiStep() {
 				this->angerTicks = 0;
 				this->setAngry(0);
 			}
-			if (!this->isSitting && owner && owner->isAlive()) {
+			if (!this->isSitting && !this->resumeSitOnLand && owner && owner->isAlive()) {
 				Entity* ownerTarget = findOwnerCombatTarget(this, owner);
 				if (ownerTarget) {
 					this->attackTarget = ownerTarget->entityId;
@@ -600,7 +761,7 @@ void Wolf::aiStep() {
 			this->isJumping = 0;
 			this->motionX *= 0.6f;
 			this->motionZ *= 0.6f;
-		} else if (this->attackTarget == 0 && owner && owner->isAlive()) {
+		} else if (!this->resumeSitOnLand && this->attackTarget == 0 && owner && owner->isAlive()) {
 			float distSq = owner->distanceToSqr(this);
 			float tpDistSq = this->isInWater() ? 576.0f : 144.0f;
 			if (distSq > tpDistSq && owner->onGround && !owner->isInWater()) {
@@ -870,6 +1031,7 @@ bool_t Wolf::interactWithPlayer(Player* player) {
 				if (isMeat && !this->isBaby() && this->getAge() == 0 && !this->isInLove()) {
 					this->inLove = 600;
 					this->isSitting = 0;
+					this->resumeSitOnLand = 0;
 					this->attackTarget = 0;
 					this->setPath(0);
 					this->updateSynchedFlags();
@@ -882,6 +1044,7 @@ bool_t Wolf::interactWithPlayer(Player* player) {
 			if (this->level && !this->level->isClientMaybe) {
 				this->inLove = 600;
 				this->isSitting = 0;
+				this->resumeSitOnLand = 0;
 				this->attackTarget = 0;
 				this->setPath(0);
 				this->updateSynchedFlags();
@@ -911,6 +1074,7 @@ bool_t Wolf::interactWithPlayer(Player* player) {
 	if (this->isOwnerPlayer(player)) {
 		if (this->level && !this->level->isClientMaybe) {
 			this->isSitting = this->isSitting ? 0 : 1;
+			this->resumeSitOnLand = 0;
 			this->isJumping = 0;
 			this->setPath(0);
 			this->attackTarget = 0;
@@ -940,6 +1104,7 @@ bool_t Wolf::hurt(Entity* attacker, int32_t dmg) {
 	}
 	if (this->isTame) {
 		this->isSitting = 0;
+		this->resumeSitOnLand = 0;
 		this->setPath(0);
 		Player* owner = this->resolveOwner();
 		bool_t hitByOwner = threat && threat->isPlayer() && this->isOwnerPlayer((Player*)threat);
@@ -1028,6 +1193,7 @@ void Wolf::readAdditionalSaveData(CompoundTag* tag) {
 	this->isAngry = tag->getByte("Angry") != 0;
 	this->isTame = tag->getByte("Tame") != 0;
 	this->isSitting = tag->getByte("Sitting") != 0;
+	this->resumeSitOnLand = tag->getByte("ResumeSitOnLand") != 0;
 	this->ownerName = tag->getString("Owner");
 	if (this->isTame && this->isAngry) {
 		this->isAngry = 0;
@@ -1042,6 +1208,7 @@ void Wolf::addAdditonalSaveData(CompoundTag* tag) {
 	tag->putBoolean("Angry", this->isAngry);
 	tag->putBoolean("Tame", this->isTame);
 	tag->putBoolean("Sitting", this->isSitting);
+	tag->putBoolean("ResumeSitOnLand", this->resumeSitOnLand);
 	tag->putString("Owner", this->ownerName);
 }
 
@@ -1063,7 +1230,17 @@ bool_t Wolf::canSpawn() {
 }
 
 bool_t Wolf::removeWhenFarAway() {
-	return !this->isTame;
+	return !this->isTame && Animal::removeWhenFarAway();
+}
+bool_t Wolf::isSittingOrResting() {
+	return this->isSitting;
+}
+bool_t Wolf::isFollowingOwner() {
+	if (this->isSitting || !this->isTame || this->attackTarget != 0) {
+		return 0;
+	}
+	Player* owner = this->resolveOwner();
+	return owner && owner->isAlive() && owner->distanceToSqr(this) > 16.0f;
 }
 
 Mob* Wolf::getBreedOffspring(Animal*) {

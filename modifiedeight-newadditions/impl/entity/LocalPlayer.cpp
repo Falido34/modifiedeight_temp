@@ -307,7 +307,11 @@ void LocalPlayer::tick() {
     this->minecraft->rakNetInstance->send(pk);
   }
 
-  if (this->isJumping && this->isRiding()) {
+  bool_t touchBoat = (this->minecraft && this->minecraft->useTouchscreen() &&
+                      this->ridingAt &&
+                      (this->ridingAt->getEntityTypeId() == 40 ||
+                       this->ridingAt->entityRenderId == BOAT));
+  if (this->isJumping && this->isRiding() && !touchBoat) {
     this->ride(0);
     SetEntityLinkPacket v24(0, this->entityId,
                             this->ridingAt ? this->ridingAt->entityId : 0);
@@ -730,19 +734,19 @@ void LocalPlayer::travel(float a2, float a3) {
     float lookY = -sinf(pitchRad);
     float horizCos = cosf(pitchRad);
     if (horizCos < 0.0f) horizCos = -horizCos;
-    float baseSpeed = this->isSprinting ? 0.064f : 0.042f;
+    float baseSpeed = this->isSprinting ? 0.041f : 0.029f;
     float horizSpeed = baseSpeed * (0.45f + 0.55f * horizCos);
     bool hasForward = (a3 > 0.05f || a3 < -0.05f);
     bool hasInput = hasForward || (a2 > 0.05f || a2 < -0.05f);
     if (hasForward) {
-      float swimPower = this->isSprinting ? 0.052f : 0.034f;
+      float swimPower = this->isSprinting ? 0.034f : 0.024f;
       this->motionY += a3 * lookY * swimPower;
     }
     if (this->isJumping) {
-      this->motionY += headInWater ? 0.032f : 0.024f;
+      this->motionY += headInWater ? 0.035f : 0.027f;
     }
     if (this->isSneaking()) {
-      this->motionY -= 0.032f;
+      this->motionY -= 0.035f;
     }
     if (!headInWater && !this->isJumping && !this->isCollidedHorizontally &&
         this->motionY > 0.0f && (!hasForward || lookY < 0.45f)) {
@@ -750,12 +754,12 @@ void LocalPlayer::travel(float a2, float a3) {
     }
     this->moveRelative(a2, a3, horizSpeed);
     this->move(this->motionX, this->motionY, this->motionZ);
-    this->motionX *= 0.89f;
-    this->motionZ *= 0.89f;
+    this->motionX *= 0.84f;
+    this->motionZ *= 0.84f;
     if (hasInput || this->isSneaking() || this->isJumping) {
-      this->motionY *= 0.88f;
+      this->motionY *= 0.84f;
     } else {
-      this->motionY = (this->motionY * 0.86f) - (headInWater ? 0.004f : 0.002f);
+      this->motionY = (this->motionY * 0.84f) - (headInWater ? 0.004f : 0.002f);
     }
     if (this->isCollidedHorizontally && !this->isSneaking() && a3 > 0.05f && this->level) {
       int px = (int)floorf(this->posX);

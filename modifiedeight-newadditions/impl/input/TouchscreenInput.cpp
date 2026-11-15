@@ -285,6 +285,18 @@ void TouchscreenInput::tick(Player *a2) {
   this->field_B0[5] = 0;
   v24 = 0;
   v25 = Multitouch::_activePointerThisUpdateCount;
+  bool isRidingBoat = a2 && a2->isRiding() && a2->ridingAt && (a2->ridingAt->getEntityTypeId() == 40 || a2->ridingAt->entityRenderId == BOAT);
+  static bool s_wasRidingBoat = false;
+  if (isRidingBoat != s_wasRidingBoat) {
+    if (isRidingBoat) {
+      this->sneakingMaybe = 0;
+      this->jumpingMaybe = 0;
+      this->field_42 = 0;
+    } else {
+      this->sneakingMaybe = 0;
+    }
+    s_wasRidingBoat = isRidingBoat;
+  }
   while (v2 < v25) {
     v7 = Multitouch::_activePointerThisUpdateList[v2];
     if (v7 < 0) {
@@ -304,7 +316,6 @@ void TouchscreenInput::tick(Player *a2) {
     }
     v11 = Multitouch::_pointers[v10].getY();
     pointerId = this->touchAreaModel.getPointerId(v9, v11, v7);
-    bool isRidingBoat = a2 && a2->isRiding() && a2->ridingAt && a2->ridingAt->getEntityTypeId() == 90;
     if (this->field_1C.isInside((float)v9, (float)v11) && this->field_41 &&
         !this->idkWhatIsThis2 && !isRidingBoat) {
       v5 = 1;
@@ -328,6 +339,12 @@ void TouchscreenInput::tick(Player *a2) {
         this->field_A8 = pointerId == 104;
       }
       if (pointerId == 104) {
+        if (isRidingBoat) {
+          if (!this->options->swapJumpAndSneak) {
+            this->forwardInput = 1.0f;
+          }
+          goto LABEL_80;
+        }
         if (a2->isInWater()) {
           goto LABEL_30;
         }
@@ -410,13 +427,17 @@ void TouchscreenInput::tick(Player *a2) {
               v7 = 11;
             }
             if (Multitouch::_wasPressed[v7]) {
-              static int32_t s_lastSneakTap = 0;
-              int32_t now = getTimeMs();
-              if (now - s_lastSneakTap <= 400) {
-                this->sneakingMaybe = !this->sneakingMaybe;
-                s_lastSneakTap = 0;
+              if (isRidingBoat) {
+                this->sneakingMaybe = 1;
               } else {
-                s_lastSneakTap = now;
+                static int32_t s_lastSneakTap = 0;
+                int32_t now = getTimeMs();
+                if (now - s_lastSneakTap <= 400) {
+                  this->sneakingMaybe = !this->sneakingMaybe;
+                  s_lastSneakTap = 0;
+                } else {
+                  s_lastSneakTap = now;
+                }
               }
             }
             goto LABEL_40;
@@ -480,6 +501,9 @@ void TouchscreenInput::tick(Player *a2) {
     if (this->forwardInput <= 0.0 || this->sneakingMaybe) {
       lp->setSprinting(false);
     }
+  }
+  if (isRidingBoat) {
+    this->jumpingMaybe = 0;
   }
   ControllerHandler::applyMove(this, a2);
 }

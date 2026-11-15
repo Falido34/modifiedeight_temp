@@ -31,6 +31,27 @@
 #include <utils.h>
 #include <string.h>
 
+static float seagrassHash2D(int32_t seed, int32_t x, int32_t z) {
+	uint32_t h = (uint32_t)x * 374761393u + (uint32_t)z * 668265263u + (uint32_t)seed * 1442695041u;
+	h = (h ^ (h >> 13)) * 1274126177u;
+	h ^= (h >> 16);
+	return (float)(h & 0xFFFFu) / 65535.0f;
+}
+
+static float seagrassSmoothNoise(int32_t seed, float x, float z) {
+	int32_t ix = (int32_t)floorf(x);
+	int32_t iz = (int32_t)floorf(z);
+	float fx = x - (float)ix;
+	float fz = z - (float)iz;
+	float u = fx * fx * (3.0f - 2.0f * fx);
+	float v = fz * fz * (3.0f - 2.0f * fz);
+	float a = seagrassHash2D(seed, ix, iz);
+	float b = seagrassHash2D(seed, ix + 1, iz);
+	float c = seagrassHash2D(seed, ix, iz + 1);
+	float d = seagrassHash2D(seed, ix + 1, iz + 1);
+	return (a + (b - a) * u) * (1.0f - v) + (c + (d - c) * u) * v;
+}
+
 NewRandomLevelSource::NewRandomLevelSource(struct Level* a2, int32_t a3, int32_t a4, bool a5) 
 	: random(a3),
 	octave16noise_1(&this->random, 16)
@@ -1314,24 +1335,66 @@ void NewRandomLevelSource::postProcess(struct ChunkSource* a2, int32_t chunkX, i
 		f.place(this->level, a8, (v108 & 0xF) + chunkXStart + 8, v109 % (v136 % (v138 % 0x70u + 8) + 8), chunkZStart + (v110 & 0xF) + 8);
 	}
 	}
-	if (Tile::seagrass && biomeAtChunk != Biome::mushroom && biomeAtChunk != Biome::taiga && biomeAtChunk != Biome::tundra) {
-		for (int32_t ox = 0; ox < 16; ++ox) {
-			for (int32_t oz = 0; oz < 16; ++oz) {
-				if ((a8->genrand_int32() % 100) < 65) {
-					int32_t sx = chunkXStart + ox;
-					int32_t sz = chunkZStart + oz;
-					for (int32_t sy = 62; sy >= 30; --sy) {
-						int32_t cur = this->level->getTile(sx, sy, sz);
+	if (Tile::seagrass) {
+		int32_t levelSeed = (int32_t)this->level->getSeed();
+		for (int32_t ox = 8; ox < 24; ++ox) {
+			for (int32_t oz = 8; oz < 24; ++oz) {
+				int32_t sx = chunkXStart + ox;
+				int32_t sz = chunkZStart + oz;
+				if (!this->level->hasChunkAt(sx, 64, sz)) {
+					continue;
+				}
+				Biome* localBiome = this->level->getBiome(sx, sz);
+				if (!localBiome || localBiome == Biome::mushroom || localBiome == Biome::taiga || localBiome == Biome::tundra || localBiome == Biome::icePeaks || localBiome == Biome::iceDesert) {
+					continue;
+				}
+				float macro = seagrassSmoothNoise(levelSeed ^ 0x4A1B2C3D, (float)sx / 18.0f, (float)sz / 18.0f);
+				float detail = seagrassSmoothNoise(levelSeed ^ 0x1F2E3D4C, (float)sx / 5.5f, (float)sz / 5.5f);
+				float density = macro * 0.65f + detail * 0.35f;
+				if (localBiome == Biome::swampland || localBiome == Biome::equatorialRainforest) {
+					density += 0.08f;
+				}
+				if (density < 0.42f) {
+					continue;
+				}
+				float meadow = (density - 0.42f) / 0.58f;
+				if (meadow > 1.0f) meadow = 1.0f;
+				for (int32_t sy = 76; sy >= 26; --sy) {
+					int32_t cur = this->level->getTile(sx, sy, sz);
+					if ((cur == Tile::calmWater->blockID || cur == Tile::water->blockID) && this->level->getData(sx, sy, sz) == 0) {
 						int32_t below = this->level->getTile(sx, sy - 1, sz);
-						if ((cur == Tile::water->blockID || cur == Tile::calmWater->blockID) &&
-						    (below == Tile::dirt->blockID || below == Tile::sand->blockID || below == Tile::gravel->blockID || below == Tile::clay->blockID)) {
-							int32_t above = this->level->getTile(sx, sy + 1, sz);
-							int32_t roll = a8->genrand_int32() % 100;
-							if (roll < 60 || (above != Tile::water->blockID && above != Tile::calmWater->blockID)) {
-								this->level->setTileAndData(sx, sy, sz, Tile::seagrass->blockID, 0, 2);
-							} else {
-								this->level->setTileAndData(sx, sy, sz, Tile::seagrass->blockID, 1, 2);
-								this->level->setTileAndData(sx, sy + 1, sz, Tile::seagrass->blockID, 2, 2);
+						if (below == Tile::dirt->blockID || below == Tile::sand->blockID || below == Tile::gravel->blockID || below == Tile::clay->blockID || below == Tile::grass->blockID) {
+							int32_t topY = sy;
+							while (topY < 126) {
+								int32_t up = this->level->getTile(sx, topY + 1, sz);
+								if (up == Tile::calmWater->blockID || up == Tile::water->blockID) {
+									++topY;
+								} else {
+									break;
+								}
+							}
+							int32_t surfAbove = (topY < 127) ? this->level->getTile(sx, topY + 1, sz) : 0;
+							if (surfAbove != 0 || !this->level->canSeeSky(sx, topY + 1, sz)) {
+								break;
+							}
+							int32_t waterDepth = (topY - sy) + 1;
+							float placeChance = 0.28f + meadow * 0.56f;
+							if (below == Tile::gravel->blockID) {
+								placeChance *= 0.45f;
+							}
+							if ((int32_t)(a8->genrand_int32() % 100) < (int32_t)(placeChance * 100.0f)) {
+								if (waterDepth == 1) {
+									this->level->setTileAndDataNoUpdate(sx, sy, sz, Tile::seagrass->blockID, 0);
+								} else {
+									int32_t tallChance = (waterDepth == 2) ? (int32_t)(meadow * 38.0f) : (int32_t)(16.0f + meadow * 48.0f);
+									int32_t roll = a8->genrand_int32() % 100;
+									if (roll < tallChance) {
+										this->level->setTileAndDataNoUpdate(sx, sy, sz, Tile::seagrass->blockID, 1);
+										this->level->setTileAndDataNoUpdate(sx, sy + 1, sz, Tile::seagrass->blockID, 2);
+									} else {
+										this->level->setTileAndDataNoUpdate(sx, sy, sz, Tile::seagrass->blockID, 0);
+									}
+								}
 							}
 							break;
 						}
@@ -1409,23 +1472,53 @@ void NewRandomLevelSource::postProcess(struct ChunkSource* a2, int32_t chunkX, i
 		MobSpawner::postProcessSpawnMobs(this->level, biomeAtChunk, chunkXStart + 8, chunkZStart + 8, 16, 16, a8);
 	}
 
-	for (int32_t bx = 0; bx < 16; ++bx) {
-		for (int32_t bz = 0; bz < 16; ++bz) {
-			int32_t wx = chunkXStart + bx;
-			int32_t wz = chunkZStart + bz;
+	for (int32_t dx = 0; dx < 16; ++dx) {
+		for (int32_t dz = 0; dz < 16; ++dz) {
+			int32_t wx = chunkXStart + dx + 8;
+			int32_t wz = chunkZStart + dz + 8;
+			if (!this->level->hasChunkAt(wx, 64, wz)) {
+				continue;
+			}
 			Biome* localBiome = this->level->getBiome(wx, wz);
 			if (localBiome == Biome::tundra || localBiome == Biome::icePeaks || localBiome == Biome::taiga || localBiome == Biome::iceDesert) {
-				int32_t topy = this->level->getTopSolidBlock(wx, wz);
-				if (topy > 0 && topy < 128) {
-					int32_t belowTile = this->level->getTile(wx, topy - 1, wz);
-					if (belowTile == Tile::calmWater->blockID || belowTile == Tile::water->blockID) {
-						if (localBiome == Biome::tundra || localBiome == Biome::icePeaks) {
-							this->level->setTile(wx, topy - 1, wz, Tile::ice->blockID, 2);
+				bool_t freezeBiome = (localBiome == Biome::tundra || localBiome == Biome::icePeaks || localBiome == Biome::iceDesert);
+				bool_t frozeWater = 0;
+				LevelChunk* lc = this->level->getChunk(wx >> 4, wz >> 4);
+				int32_t lx = wx & 15;
+				int32_t lz = wz & 15;
+				int32_t startY = lc ? lc->getHeightmap(lx, lz) + 2 : 127;
+				if (startY > 127) startY = 127;
+				if (startY < 1) startY = 1;
+				if (freezeBiome && lc) {
+					for (int32_t y = startY; y >= 1; --y) {
+						int32_t t = lc->getTile(lx, y, lz);
+						if (t == 0 || t == Tile::topSnow->blockID || (Tile::tallgrass && t == Tile::tallgrass->blockID)) {
+							continue;
 						}
-					} else if (this->level->isEmptyTile(wx, topy, wz)) {
+						if (t == Tile::calmWater->blockID || t == Tile::water->blockID) {
+							this->level->setTileAndDataNoUpdate(wx, y, wz, Tile::ice->blockID, 0);
+							if (y + 1 < 128 && lc->getTile(lx, y + 1, lz) == Tile::topSnow->blockID) {
+								this->level->setTileAndDataNoUpdate(wx, y + 1, wz, 0, 0);
+							}
+							frozeWater = 1;
+							break;
+						}
+						Material* m = Tile::tiles[t] ? (Material*)Tile::tiles[t]->material : Material::air;
+						if (m == Material::leaves || (m && !m->blocksMotion() && !m->isLiquid())) {
+							continue;
+						}
+						if (m == Material::ice) {
+							frozeWater = 1;
+						}
+						break;
+					}
+				}
+				if (!frozeWater) {
+					int32_t topy = this->level->getTopSolidBlock(wx, wz);
+					if (topy > 0 && topy < 128 && this->level->isEmptyTile(wx, topy, wz)) {
 						Material* v118 = this->level->getMaterial(wx, topy - 1, wz);
 						if (v118 && v118->blocksMotion() && Material::ice != v118) {
-							this->level->setTile(wx, topy, wz, Tile::topSnow->blockID, 2);
+							this->level->setTileNoUpdate(wx, topy, wz, Tile::topSnow->blockID);
 						}
 					}
 				}
@@ -1435,11 +1528,6 @@ void NewRandomLevelSource::postProcess(struct ChunkSource* a2, int32_t chunkX, i
 	_D6E52C58 = _D6E52C58 + getTimeS() - timeS;
 	HeavyTile::instaFall = 0;
 	this->level->field_12 = 0;
-
-	LevelChunk* chunk = this->level->getChunk(chunkX, chunkZ);
-	if (chunk) {
-		chunk->recalcHeightmapOnly();
-	}
 	while (this->level->updateLights()) {
 	}
 	this->field_19E0.clear();

@@ -98,9 +98,9 @@ bool_t Boat::interactWithPlayer(Player* player) {
 		return 0;
 	}
 	if (!this->level->isClientMaybe) {
-		if (this->rider == player) {
-			player->ride(0);
-		} else {
+		if (this->rider != player) {
+			player->isJumping = 0;
+			player->setSneaking(0);
 			player->ride(this);
 		}
 	}

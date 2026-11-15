@@ -2545,6 +2545,36 @@ void Level::tick() {
 		}
 	}
 
+	if(!this->isClientMaybe && (this->levelData.getTime() & 3) == 0 && !this->playersMaybe.empty()) {
+		for(size_t pi = 0; pi < this->playersMaybe.size(); ++pi) {
+			Player* p = this->playersMaybe[pi];
+			if(!p) continue;
+			int32_t px = Mth::floor(p->posX);
+			int32_t pz = Mth::floor(p->posZ);
+			for(int32_t s = 0; s < 4; ++s) {
+				int32_t rx = px + (int32_t)(this->random.genrand_int32() % 49) - 24;
+				int32_t rz = pz + (int32_t)(this->random.genrand_int32() % 49) - 24;
+				if(!this->hasChunkAt(rx, 64, rz)) continue;
+				Biome* b = this->getBiome(rx, rz);
+				if(b == Biome::tundra || b == Biome::icePeaks || b == Biome::iceDesert) {
+					int32_t topY = this->getHeightmap(rx, rz);
+					if(topY > 0 && topY < 128) {
+						int32_t t = this->getTile(rx, topY - 1, rz);
+						if((t == Tile::calmWater->blockID || t == Tile::water->blockID) && this->getData(rx, topY - 1, rz) == 0 && this->getBrightness(LightLayer::Block, rx, topY - 1, rz) < 10) {
+							int32_t above = this->getTile(rx, topY, rz);
+							if(above == 0 || (Tile::topSnow && above == Tile::topSnow->blockID)) {
+								this->setTileAndData(rx, topY - 1, rz, Tile::ice->blockID, 0, 3);
+								if(Tile::topSnow && above == Tile::topSnow->blockID) {
+									this->setTileAndData(rx, topY, rz, 0, 0, 3);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	this->tickPendingTicks(0);
 	this->tickTiles();
 	for(int32_t v9 = 0; v9 < this->entities.size(); ++v9) {

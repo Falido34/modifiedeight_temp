@@ -48,6 +48,8 @@ void BreedGoal::breed() {
 		v10 = this->target.lock();
 		v10->resetLove();
 		v6->setAge(-24000);
+		((Animal*)v6)->familyParentId = this->animal->entityId;
+		((Animal*)v6)->familyCoParentId = v5->entityId;
 		v6->moveTo(this->animal->posX, this->animal->posY, this->animal->posZ, 0.0, 0.0);
 		v11 = 7;
 		this->level->addEntity(v6);

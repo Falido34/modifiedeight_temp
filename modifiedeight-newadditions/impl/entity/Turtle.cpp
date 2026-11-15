@@ -76,50 +76,56 @@ void Turtle::updateAi() {
 		if (this->swimTimer > 0) {
 			--this->swimTimer;
 		}
-		if (this->swimTimer <= 0 || this->isCollidedHorizontally || (this->random.genrand_int32() % 50) == 0) {
-			if (this->isCollidedHorizontally) {
-				this->swimAngle = Mth::wrapDegrees(this->swimAngle + 110.0f + this->random.nextFloat() * 140.0f);
-			} else {
-				this->swimAngle = Mth::wrapDegrees(this->swimAngle + (this->random.nextFloat() - 0.5f) * 120.0f);
+		bool_t familySwimming = this->applyWaterFamilySwim(&this->swimAngle, &this->swimSpeed, &this->swimTargetVy, &this->swimTimer, this->air < 120);
+		if (!familySwimming) {
+			if (this->swimTimer <= 0 || this->isCollidedHorizontally || (this->random.genrand_int32() % 50) == 0) {
+				if (this->isCollidedHorizontally) {
+					this->swimAngle = Mth::wrapDegrees(this->swimAngle + 110.0f + this->random.nextFloat() * 140.0f);
+				} else {
+					this->swimAngle = Mth::wrapDegrees(this->swimAngle + (this->random.nextFloat() - 0.5f) * 120.0f);
+				}
+				this->swimSpeed = 0.052f + this->random.nextFloat() * 0.038f;
+				this->swimTargetVy = (this->random.nextFloat() - 0.5f) * 0.028f;
+				this->swimTimer = 30 + (this->random.genrand_int32() % 55);
 			}
-			this->swimSpeed = 0.052f + this->random.nextFloat() * 0.038f;
-			this->swimTargetVy = (this->random.nextFloat() - 0.5f) * 0.028f;
-			this->swimTimer = 30 + (this->random.genrand_int32() % 55);
-		}
 
-		float rad = this->swimAngle * (float)(3.14159265 / 180.0);
-		int32_t curY = Mth::floor(this->posY + 0.25f);
-		int32_t aheadX = Mth::floor(this->posX - Mth::sin(rad) * 2.1f);
-		int32_t aheadZ = Mth::floor(this->posZ + Mth::cos(rad) * 2.1f);
-		if (!isTurtleWaterAt(this->level, aheadX, curY, aheadZ)) {
-			float leftAngle = Mth::wrapDegrees(this->swimAngle - 60.0f);
-			float rightAngle = Mth::wrapDegrees(this->swimAngle + 60.0f);
-			float lRad = leftAngle * (float)(3.14159265 / 180.0);
-			float rRad = rightAngle * (float)(3.14159265 / 180.0);
-			bool_t hasLeft = isTurtleWaterAt(this->level, Mth::floor(this->posX - Mth::sin(lRad) * 2.1f), curY, Mth::floor(this->posZ + Mth::cos(lRad) * 2.1f));
-			bool_t hasRight = isTurtleWaterAt(this->level, Mth::floor(this->posX - Mth::sin(rRad) * 2.1f), curY, Mth::floor(this->posZ + Mth::cos(rRad) * 2.1f));
-			if (hasLeft && !hasRight) {
-				this->swimAngle = leftAngle;
-			} else if (hasRight && !hasLeft) {
-				this->swimAngle = rightAngle;
-			} else {
-				this->swimAngle = Mth::wrapDegrees(this->swimAngle + ((this->random.genrand_int32() & 1) ? 140.0f : -140.0f));
+			float rad = this->swimAngle * (float)(3.14159265 / 180.0);
+			int32_t curY = Mth::floor(this->posY + 0.25f);
+			int32_t aheadX = Mth::floor(this->posX - Mth::sin(rad) * 2.1f);
+			int32_t aheadZ = Mth::floor(this->posZ + Mth::cos(rad) * 2.1f);
+			if (!isTurtleWaterAt(this->level, aheadX, curY, aheadZ)) {
+				float leftAngle = Mth::wrapDegrees(this->swimAngle - 60.0f);
+				float rightAngle = Mth::wrapDegrees(this->swimAngle + 60.0f);
+				float lRad = leftAngle * (float)(3.14159265 / 180.0);
+				float rRad = rightAngle * (float)(3.14159265 / 180.0);
+				bool_t hasLeft = isTurtleWaterAt(this->level, Mth::floor(this->posX - Mth::sin(lRad) * 2.1f), curY, Mth::floor(this->posZ + Mth::cos(lRad) * 2.1f));
+				bool_t hasRight = isTurtleWaterAt(this->level, Mth::floor(this->posX - Mth::sin(rRad) * 2.1f), curY, Mth::floor(this->posZ + Mth::cos(rRad) * 2.1f));
+				if (hasLeft && !hasRight) {
+					this->swimAngle = leftAngle;
+				} else if (hasRight && !hasLeft) {
+					this->swimAngle = rightAngle;
+				} else {
+					this->swimAngle = Mth::wrapDegrees(this->swimAngle + ((this->random.genrand_int32() & 1) ? 140.0f : -140.0f));
+				}
+				this->swimTimer = 25;
 			}
-			this->swimTimer = 25;
 		}
 
 		bool_t waterAbove = isTurtleWaterAt(this->level, Mth::floor(this->posX), Mth::floor(this->posY + 0.65f), Mth::floor(this->posZ));
 		bool_t waterBelow = isTurtleWaterAt(this->level, Mth::floor(this->posX), Mth::floor(this->posY - 0.6f), Mth::floor(this->posZ));
 		if (this->air < 120) {
 			this->swimTargetVy = 0.042f;
-		} else if (!waterAbove && this->swimTargetVy > -0.004f) {
-			this->swimTargetVy = -0.015f;
-		} else if (!waterBelow && this->swimTargetVy < 0.004f) {
-			this->swimTargetVy = 0.02f;
+		} else if (!familySwimming) {
+			if (!waterAbove && this->swimTargetVy > -0.004f) {
+				this->swimTargetVy = -0.015f;
+			} else if (!waterBelow && this->swimTargetVy < 0.004f) {
+				this->swimTargetVy = 0.02f;
+			}
 		}
 
 		float diff = Mth::wrapDegrees(this->swimAngle - this->yaw);
-		this->yaw = Mth::wrapDegrees(this->yaw + Mth::clamp(diff * 0.1f, -6.5f, 6.5f));
+		float maxTurn = familySwimming ? 12.0f : 6.5f;
+		this->yaw = Mth::wrapDegrees(this->yaw + Mth::clamp(diff * (familySwimming ? 0.2f : 0.1f), -maxTurn, maxTurn));
 		this->pitch = 0.0f;
 		return;
 	}

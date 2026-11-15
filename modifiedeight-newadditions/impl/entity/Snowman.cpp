@@ -194,6 +194,20 @@ void Snowman::aiStep() {
 			}
 		}
 	}
+
+	this->field_124 = this->yaw;
+	this->field_128 = this->yaw;
+	this->headYaw = this->yaw;
+	this->prevHeadYaw = this->yaw;
+	this->curHeadYawOffset = 0.0f;
+	this->curHeadPitchOffset = 0.0f;
+	this->pitch = 0.0f;
+	this->prevPitch = 0.0f;
+	this->field_168 = 0.0f;
+	this->field_16C = 0.0f;
+	this->field_170 = 0.0f;
+	this->field_134 = 0.0f;
+	this->field_138 = 0.0f;
 }
 
 Entity* Snowman::findAttackTarget() {
@@ -234,6 +248,8 @@ void Snowman::checkHurtTarget(Entity* target, float dist) {
 		}
 		this->_shouldHoldGround = 1;
 		this->yaw = atan2f(dz, dx) * 57.29578f - 90.0f;
+		this->field_124 = this->yaw;
+		this->headYaw = this->yaw;
 	}
 }
 

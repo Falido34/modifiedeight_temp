@@ -967,7 +967,7 @@ void Player::travel(float a2, float a3) {
 		float cosYaw = cosf(radYaw);
 		
 		bool isSpr = (this->isLocalPlayer() && ((LocalPlayer*)this)->isSprinting);
-		float speed = (isSpr ? 0.038f : 0.024f);
+		float speed = (isSpr ? 0.034f : 0.024f);
 		float lookX = -sinYaw * cosPitch;
 		float lookY = -sinPitch;
 		float lookZ = cosYaw * cosPitch;
@@ -982,9 +982,9 @@ void Player::travel(float a2, float a3) {
 		}
 
 		this->move(this->motionX, this->motionY, this->motionZ);
-		this->motionX *= 0.82f;
-		this->motionY = (this->motionY * 0.82f) - 0.006f;
-		this->motionZ *= 0.82f;
+		this->motionX *= 0.83f;
+		this->motionY = (this->motionY * 0.83f) - 0.006f;
+		this->motionZ *= 0.83f;
 		if (this->isCollidedHorizontally && this->isUnderLiquid(Material::water)) {
 			this->motionY = 0.2f;
 		}
