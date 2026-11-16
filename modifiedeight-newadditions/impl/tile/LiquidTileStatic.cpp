@@ -38,7 +38,7 @@ void LiquidTileStatic::tick(Level* level, int32_t x, int32_t y, int32_t z, Rando
 		Biome* b = level->getBiome(x, z);
 		if((b == Biome::tundra || b == Biome::icePeaks || b == Biome::iceDesert) && level->getData(x, y, z) == 0 && level->getBrightness(LightLayer::Block, x, y, z) < 10) {
 			int32_t above = (y + 1 < 128) ? level->getTile(x, y + 1, z) : 0;
-			if(y + 1 >= 128 || above == 0 || (Tile::topSnow && above == Tile::topSnow->blockID) || (Tile::ice && above == Tile::ice->blockID)) {
+			if((y + 1 >= 128 || above == 0 || (Tile::topSnow && above == Tile::topSnow->blockID)) && (y + 1 >= 128 || level->canSeeSky(x, y + 1, z))) {
 				level->setTileAndData(x, y, z, Tile::ice->blockID, 0, 3);
 				if(Tile::topSnow && above == Tile::topSnow->blockID) {
 					level->setTileAndData(x, y + 1, z, 0, 0, 3);

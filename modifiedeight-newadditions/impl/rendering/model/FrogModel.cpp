@@ -22,7 +22,7 @@ FrogModel::FrogModel()
 	this->body.setPos(0.0f, 22.0f, 4.0f);
 
 	this->head.setModel(this);
-	this->head.addBox(-3.5f, -2.0f, -7.0f, 7, 3, 9);
+	this->head.addBox(-3.5f, -2.0f, -7.0f, 7, 3, 9, 0.02f);
 	this->head.setPos(0.0f, 20.0f, 3.0f);
 
 	this->croakingBody.setModel(this);
@@ -58,20 +58,18 @@ FrogModel::~FrogModel() {
 }
 
 void FrogModel::setupAnim(float a2, float a3, float a4, float a5, float a6, float a7) {
-	float headTilt = animWindowHold(a4, 42.0f, 401U, 88U, true) * 0.16f;
-	float frogGlance = animWindowHold(a4, 48.0f, 409U, 84U, true) * 0.14f;
 	float throatPulse = fabsf(animBurstWave(a4, 46.0f, 419U, 96U, 2.2f));
-	this->head.yRotAngle = a5 * (float)(M_PI / 180.0) + frogGlance;
-	this->head.xRotAngle = a6 * (float)(M_PI / 180.0) - throatPulse * 0.08f;
-	this->head.zRotAngle = headTilt;
-	this->leftEye.yRotAngle = this->head.yRotAngle;
-	this->leftEye.xRotAngle = this->head.xRotAngle;
-	this->leftEye.zRotAngle = headTilt;
-	this->rightEye.yRotAngle = this->head.yRotAngle;
-	this->rightEye.xRotAngle = this->head.xRotAngle;
-	this->rightEye.zRotAngle = headTilt;
-	this->croakingBody.setPos(0.0f, 21.0f - throatPulse * 0.6f, -1.0f - throatPulse * 0.8f);
-	this->croakingBody.xRotAngle = throatPulse * 0.18f;
+	this->head.yRotAngle = 0.0f;
+	this->head.xRotAngle = 0.0f;
+	this->head.zRotAngle = 0.0f;
+	this->leftEye.yRotAngle = 0.0f;
+	this->leftEye.xRotAngle = 0.0f;
+	this->leftEye.zRotAngle = 0.0f;
+	this->rightEye.yRotAngle = 0.0f;
+	this->rightEye.xRotAngle = 0.0f;
+	this->rightEye.zRotAngle = 0.0f;
+	this->croakingBody.setPos(0.0f, 21.0f + throatPulse * 0.35f, -1.0f - throatPulse * 0.4f);
+	this->croakingBody.xRotAngle = throatPulse * 0.12f;
 	this->leftLeg.yRotAngle = 0.0f;
 	this->rightLeg.yRotAngle = 0.0f;
 	this->leftArm.yRotAngle = 0.0f;

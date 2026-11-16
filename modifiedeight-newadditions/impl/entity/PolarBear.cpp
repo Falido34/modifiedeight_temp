@@ -15,7 +15,7 @@
 PolarBear::PolarBear(Level* level)
 	: Animal(level) {
 	this->entityRenderId = POLAR_BEAR;
-	this->setSize(1.3f, 1.4f);
+	this->setSize(1.65f, 1.8f);
 	this->angerTicks = 0;
 	this->stareTicks = 0;
 	this->friendlyTicks = 0;
@@ -282,7 +282,7 @@ Entity* PolarBear::findAttackTarget() {
 }
 
 void PolarBear::checkHurtTarget(Entity* target, float dist) {
-	if (target && target->isAlive() && this->attackTime <= 0 && dist < 2.4f && target->boundingBox.maxY > this->boundingBox.minY && target->boundingBox.minY < this->boundingBox.maxY) {
+	if (target && target->isAlive() && this->attackTime <= 0 && dist < 2.65f && target->boundingBox.maxY > this->boundingBox.minY && target->boundingBox.minY < this->boundingBox.maxY) {
 		this->attackTime = 20;
 		this->doHurtTarget(target);
 	}
@@ -300,6 +300,12 @@ void PolarBear::aiStep() {
 	Animal::aiStep();
 	if (!this->level) {
 		return;
+	}
+	float targetW = this->isBaby() ? 0.85f : 1.65f;
+	float targetH = this->isBaby() ? 0.9f : 1.8f;
+	if (fabsf(this->entityWidth - targetW) > 0.01f || fabsf(this->entityHeight - targetH) > 0.01f) {
+		this->setSize(targetW, targetH);
+		this->setPos(this->posX, this->posY, this->posZ);
 	}
 	if (this->level->isClientMaybe) {
 		uint8_t flags = (uint8_t)this->synchedEntityData.getByte(16);

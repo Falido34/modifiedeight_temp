@@ -107,6 +107,9 @@ void MobRenderer::render(Entity* a2_, float a3, float a4, float a5, float a6, fl
 				v18 = v18 + (float)(v17 * 0.2);
 			}
 			this->field_18 = v18;
+		} else if(a2->ridingAt) {
+			float rPrevYaw = a2->ridingAt->prevYaw;
+			this->field_18 = rPrevYaw + (float)(a7 * Mth::wrapDegrees(a2->ridingAt->yaw - rPrevYaw));
 		}
 	}
 	this->field_1C = a2->prevPitch + (float)((float)(a2->pitch - a2->prevPitch) * a7);

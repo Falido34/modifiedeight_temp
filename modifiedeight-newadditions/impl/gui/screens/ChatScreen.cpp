@@ -531,8 +531,8 @@ static bool executeCommand(Minecraft* mc, const std::string& line) {
 							int targetChunkZ = gz * 32 + (iRand.genrand_int32() % 24);
 							int ix = targetChunkX * 16 + 4;
 							int iz = targetChunkZ * 16 + 4;
-							Biome* b = bs->getBiome(ix + 8, iz + 8);
-							if (b == Biome::tundra || b == Biome::icePeaks || b == Biome::taiga) {
+							Biome* b = bs->getBiome(targetChunkX * 16 + 16, targetChunkZ * 16 + 16);
+							if (b == Biome::tundra || b == Biome::icePeaks || b == Biome::taiga || b == Biome::iceDesert) {
 								int dx = ix - px;
 								int dz = iz - pz;
 								int distSq = dx * dx + dz * dz;

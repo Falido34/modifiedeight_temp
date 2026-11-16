@@ -102,22 +102,31 @@ bool_t Boat::interactWithPlayer(Player* player) {
 			player->isJumping = 0;
 			player->setSneaking(0);
 			player->ride(this);
+			this->positionRider(0);
 		}
 	}
 	return 1;
 }
 
 float Boat::getRideHeight() {
-	return 0.95f;
+	return 1.48f;
 }
 
 void Boat::positionRider(bool_t isDead) {
 	if (!this->rider) return;
-	float ry = this->posY + this->getRideHeight();
+	float h = this->getRideHeight();
+	float ry = this->posY + h;
 	this->rider->setPos(this->posX, ry, this->posZ);
+	this->rider->prevX = this->prevX;
+	this->rider->prevY = this->prevY + h;
+	this->rider->prevZ = this->prevZ;
 	this->rider->prevPosX = this->prevX;
-	this->rider->prevPosY = this->prevY + this->getRideHeight();
+	this->rider->prevPosY = this->prevY + h;
 	this->rider->prevPosZ = this->prevZ;
+	this->rider->motionX = 0.0f;
+	this->rider->motionY = 0.0f;
+	this->rider->motionZ = 0.0f;
+	this->rider->fallDistance = 0.0f;
 }
 
 void Boat::tick() {
@@ -137,19 +146,41 @@ void Boat::tick() {
 		this->synchedEntityData.set(19, this->damageTaken);
 	}
 
-	bool_t inWater = 0;
-	AABB checkBB = {this->boundingBox.minX, this->boundingBox.minY - 0.2f, this->boundingBox.minZ, this->boundingBox.maxX, this->boundingBox.maxY, this->boundingBox.maxZ};
-	if (this->level->containsLiquid(checkBB, Material::water)) {
-		inWater = 1;
+	bool_t hasWater = 0;
+	float waterSurfaceY = -1000.0f;
+	int32_t minBX = (int32_t)std::floor(this->boundingBox.minX + 0.05f);
+	int32_t maxBX = (int32_t)std::floor(this->boundingBox.maxX - 0.05f);
+	int32_t minBZ = (int32_t)std::floor(this->boundingBox.minZ + 0.05f);
+	int32_t maxBZ = (int32_t)std::floor(this->boundingBox.maxZ - 0.05f);
+	int32_t minBY = (int32_t)std::floor(this->boundingBox.minY - 0.15f);
+	int32_t maxBY = (int32_t)std::floor(this->boundingBox.maxY + 0.5f);
+	for (int32_t bx = minBX; bx <= maxBX; ++bx) {
+		for (int32_t bz = minBZ; bz <= maxBZ; ++bz) {
+			for (int32_t by = maxBY; by >= minBY; --by) {
+				if (this->level->getMaterial(bx, by, bz) == Material::water) {
+					float surf = (float)(by + 1) - 0.125f;
+					if (!hasWater || surf > waterSurfaceY) {
+						waterSurfaceY = surf;
+						hasWater = 1;
+					}
+					break;
+				}
+			}
+		}
 	}
 
+	bool_t inWater = hasWater && (this->boundingBox.minY <= waterSurfaceY + 0.15f);
 	if (inWater) {
-		if (this->motionY < 0.05f) {
-			this->motionY += 0.04f;
+		float targetMinY = waterSurfaceY - 0.12f;
+		float dy = targetMinY - this->boundingBox.minY;
+		this->motionY = this->motionY * 0.55f + dy * 0.35f;
+		if (this->motionY > 0.12f) this->motionY = 0.12f;
+		if (this->motionY < -0.12f) this->motionY = -0.12f;
+		if (fabsf(dy) < 0.004f && fabsf(this->motionY) < 0.004f) {
+			this->motionY = 0.0f;
 		}
-		this->motionX *= 0.97f;
-		this->motionZ *= 0.97f;
-		this->motionY *= 0.8f;
+		this->motionX *= 0.94f;
+		this->motionZ *= 0.94f;
 	} else {
 		this->motionY -= 0.04f;
 		this->motionX *= 0.82f;
@@ -162,12 +193,23 @@ void Boat::tick() {
 		if (p->isSneaking()) {
 			p->ride(0);
 		} else {
-			if (p->moveStrafe > 0.25f) this->yaw -= 3.0f;
-			else if (p->moveStrafe < -0.25f) this->yaw += 3.0f;
-			else this->yaw = p->yaw;
 			float forward = p->moveForward;
 			if (forward > 1.0f) forward = 1.0f;
 			if (forward < -1.0f) forward = -1.0f;
+			if (p->moveStrafe > 0.25f) {
+				this->yaw -= 3.0f;
+			} else if (p->moveStrafe < -0.25f) {
+				this->yaw += 3.0f;
+			} else if (fabsf(forward) > 0.05f) {
+				float diff = p->yaw - this->yaw;
+				while (diff < -180.0f) diff += 360.0f;
+				while (diff >= 180.0f) diff -= 360.0f;
+				if (diff > 6.0f) diff = 6.0f;
+				if (diff < -6.0f) diff = -6.0f;
+				this->yaw += diff * 0.5f;
+			}
+			while (this->yaw - this->prevYaw < -180.0f) this->prevYaw -= 360.0f;
+			while (this->yaw - this->prevYaw >= 180.0f) this->prevYaw += 360.0f;
 			if (fabsf(forward) > 0.05f) {
 				float speed = inWater ? 0.08f : 0.015f;
 				float rad = (this->yaw * 3.14159265f) / 180.0f;
@@ -190,6 +232,7 @@ void Boat::tick() {
 	}
 
 	this->move(this->motionX, this->motionY, this->motionZ);
+	this->positionRider(0);
 }
 
 void Boat::readAdditionalSaveData(CompoundTag* tag) {

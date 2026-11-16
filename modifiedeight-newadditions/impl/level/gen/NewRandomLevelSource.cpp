@@ -1457,13 +1457,20 @@ void NewRandomLevelSource::postProcess(struct ChunkSource* a2, int32_t chunkX, i
 		Random iRand(iSeed);
 		int32_t targetIChunkX = iChunkX * 32 + (iRand.genrand_int32() % 24);
 		int32_t targetIChunkZ = iChunkZ * 32 + (iRand.genrand_int32() % 24);
-		if (chunkX == targetIChunkX && chunkZ == targetIChunkZ && (biomeAtChunk == Biome::tundra || biomeAtChunk == Biome::icePeaks || biomeAtChunk == Biome::taiga)) {
-			int32_t ix = chunkXStart + 4;
-			int32_t iz = chunkZStart + 4;
-			int32_t iy = this->level->getHeightmap(ix + 3, iz + 3);
-			if (iy <= 0) iy = 64;
+		if (chunkX == targetIChunkX && chunkZ == targetIChunkZ && (biomeAtChunk == Biome::tundra || biomeAtChunk == Biome::icePeaks || biomeAtChunk == Biome::taiga || biomeAtChunk == Biome::iceDesert)) {
+			static const int32_t iglooOffsets[8][2] = {
+				{4, 4}, {8, 8}, {2, 8}, {8, 2}, {2, 2}, {6, 6}, {9, 4}, {4, 9}
+			};
 			IglooFeature igf(true);
-			igf.place(this->level, a8, ix, iy, iz);
+			for (int32_t oi = 0; oi < 8; ++oi) {
+				int32_t ix = chunkXStart + iglooOffsets[oi][0];
+				int32_t iz = chunkZStart + iglooOffsets[oi][1];
+				int32_t iy = this->level->getHeightmap(ix + 3, iz + 3);
+				if (iy <= 0) iy = 64;
+				if (igf.place(this->level, a8, ix, iy, iz)) {
+					break;
+				}
+			}
 		}
 
 		(void)0;

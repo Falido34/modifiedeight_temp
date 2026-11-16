@@ -51,7 +51,7 @@ void SplashScreen::render(int32_t mx, int32_t my, float delta) {
   glPushMatrix();
   glTranslatef(x, y, 0.0f);
   glScalef(scale, scale, 1.0f);
-  this->font->draw(text, 1.0f, 1.0f, 0xFFA0A0A0);
+  this->font->draw(text, 0.65f, 0.45f, 0xFFB0B0B0);
   this->font->draw(text, 0.0f, 0.0f, 0xFF303030);
   glPopMatrix();
 }

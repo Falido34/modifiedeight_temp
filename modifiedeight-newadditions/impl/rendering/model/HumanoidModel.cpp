@@ -225,8 +225,8 @@ void HumanoidModel::setupAnim(float a2, float a3, float a4, float a5, float a6, 
 	if(this->field_4) {
 		v14 = -(float)(3.1416 * 0.5);
 		this->rightArmModel.xRotAngle = (float)(v12 * a3) + (float)(v14 * 0.4);
-		this->rightLegModel.xRotAngle = v14 * 0.8;
-		this->leftLegModel.xRotAngle = v14 * 0.8;
+		this->rightLegModel.xRotAngle = v14 * 0.9f;
+		this->leftLegModel.xRotAngle = v14 * 0.9f;
 		this->rightLegModel.yRotAngle = (float)(3.1416 * 0.5) * 0.2;
 		this->leftLegModel.yRotAngle = v14 * 0.2;
 		this->leftArmModel.xRotAngle = v11 + (float)(v14 * 0.4);

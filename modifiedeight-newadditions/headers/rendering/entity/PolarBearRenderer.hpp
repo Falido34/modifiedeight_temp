@@ -5,4 +5,5 @@
 struct PolarBearRenderer: MobRenderer {
 	PolarBearRenderer(PolarBearModel*, float);
 	virtual ~PolarBearRenderer();
+	virtual void scale(Mob*, float);
 };

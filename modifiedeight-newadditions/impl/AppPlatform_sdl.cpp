@@ -253,7 +253,7 @@ bool_t AppPlatform_sdl::sdlCtxInit() {
 #endif
 
   SDL_Init(SDL_INIT_VIDEO);
-  SDL_WM_SetCaption("ModifiedEight New Additions 1.7.2.1_test7", 0);
+  SDL_WM_SetCaption("ModifiedEight New Additions 1.8.0.1_build1", 0);
 
   {
     int w, h, ch;
@@ -599,7 +599,7 @@ void AppPlatform_sdl::init() {
           if (online < 1 && curState == 3)
             online = 1;
           DiscordRPC::update(
-              details, "icon", "ModifiedEight New Additions 1.7.2.1_test7",
+              details, "icon", "ModifiedEight New Additions 1.8.0.1_build1",
               {{"Get Client", "https://modifiedeight.gitlab.io/"}},
               curState == 3 ? online : 0, curState == 3 ? online : 0);
         }

@@ -1246,7 +1246,7 @@ void Mob::aiStep() {
 	}
 	v7 = this->isInWater();
 	v8 = this->isInLava();
-	if(this->isJumping) {
+	if(this->isJumping && !this->isRiding()) {
 		if(v7 || v8) {
 			this->motionY = this->motionY + 0.04;
 		} else if(this->onGround) {

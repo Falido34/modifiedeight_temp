@@ -706,6 +706,13 @@ float LocalPlayer::getWalkingSpeedModifier() {
 }
 
 void LocalPlayer::travel(float a2, float a3) {
+  if (this->isRiding()) {
+    this->motionX = 0.0f;
+    this->motionY = 0.0f;
+    this->motionZ = 0.0f;
+    this->fallDistance = 0.0f;
+    return;
+  }
   if (this->abilities.flying) {
     Player::travel(a2, a3);
     return;
