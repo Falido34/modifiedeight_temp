@@ -18,8 +18,29 @@ jobs:
 
       - name: install pkgs
         run: |
-          sudo apt update
-          sudo apt install -y ccache libsdl1.2-dev libopenal-dev libgl1-mesa-dev zlib1g-dev libcurl4-openssl-dev
+          sudo tee /etc/apt/apt.conf.d/99-ci-robust >/dev/null <<'EOF'
+          Acquire::Retries "10";
+          Acquire::http::Timeout "15";
+          Acquire::https::Timeout "15";
+          Acquire::http::Pipeline-Depth "0";
+          Acquire::Queue-Mode "access";
+          EOF
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo tee /etc/apt/apt-mirrors.txt >/dev/null <<'EOF'
+          http://mirrors.edge.kernel.org/ubuntu/
+          http://archive.ubuntu.com/ubuntu/
+          http://security.ubuntu.com/ubuntu/
+          EOF
+          fi
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://mirrors.edge.kernel.org/ubuntu|g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          sudo apt-get update
+          for attempt in 1 2 3; do
+            sudo apt-get install -y --fix-missing --no-install-recommends \
+              ccache libsdl1.2-dev libopenal-dev libgl1-mesa-dev zlib1g-dev libcurl4-openssl-dev && break
+            [ "$attempt" -eq 3 ] && exit 1
+            sleep 5
+            sudo apt-get update --fix-missing || true
+          done
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -66,14 +87,32 @@ jobs:
 
       - name: install pkgs
         run: |
+          sudo tee /etc/apt/apt.conf.d/99-ci-robust >/dev/null <<'EOF'
+          Acquire::Retries "10";
+          Acquire::http::Timeout "15";
+          Acquire::https::Timeout "15";
+          Acquire::http::Pipeline-Depth "0";
+          Acquire::Queue-Mode "access";
+          EOF
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo tee /etc/apt/apt-mirrors.txt >/dev/null <<'EOF'
+          http://mirrors.edge.kernel.org/ubuntu/
+          http://archive.ubuntu.com/ubuntu/
+          http://security.ubuntu.com/ubuntu/
+          EOF
+          fi
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://mirrors.edge.kernel.org/ubuntu|g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            g++-mingw-w64-x86-64 \
-            gcc-mingw-w64-x86-64 \
-            libz-mingw-w64-dev \
-            cmake \
-            make \
-            ccache
+          for attempt in 1 2 3; do
+            sudo apt-get install -y --fix-missing --no-install-recommends \
+              g++-mingw-w64-x86-64-posix \
+              gcc-mingw-w64-x86-64-posix \
+              libz-mingw-w64-dev \
+              ccache && break
+            [ "$attempt" -eq 3 ] && exit 1
+            sleep 5
+            sudo apt-get update --fix-missing || true
+          done
 
       - name: Cache ccache
         uses: actions/cache@v4
@@ -144,26 +183,46 @@ jobs:
 
       - name: install pkgs
         run: |
+          sudo tee /etc/apt/apt.conf.d/99-ci-robust >/dev/null <<'EOF'
+          Acquire::Retries "10";
+          Acquire::http::Timeout "15";
+          Acquire::https::Timeout "15";
+          Acquire::http::Pipeline-Depth "0";
+          Acquire::Queue-Mode "access";
+          EOF
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo tee /etc/apt/apt-mirrors.txt >/dev/null <<'EOF'
+          http://mirrors.edge.kernel.org/ubuntu/
+          http://archive.ubuntu.com/ubuntu/
+          http://security.ubuntu.com/ubuntu/
+          EOF
+          fi
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://mirrors.edge.kernel.org/ubuntu|g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
           sudo apt-get update
-          sudo apt-get install -y \
-            clang-14 \
-            llvm-14 \
-            llvm-14-dev \
-            libc++-14-dev \
-            libc++abi-14-dev \
-            cmake \
-            make \
-            wget \
-            tar \
-            zip \
-            xz-utils \
-            libssl-dev \
-            ccache \
-            libplist-utils \
-            libplist-dev \
-            pkg-config \
-            git \
-            python3
+          for attempt in 1 2 3; do
+            sudo apt-get install -y --fix-missing --no-install-recommends \
+              clang-14 \
+              llvm-14 \
+              llvm-14-dev \
+              libc++-14-dev \
+              libc++abi-14-dev \
+              cmake \
+              make \
+              wget \
+              tar \
+              zip \
+              xz-utils \
+              libssl-dev \
+              ccache \
+              libplist-utils \
+              libplist-dev \
+              pkg-config \
+              git \
+              python3 && break
+            [ "$attempt" -eq 3 ] && exit 1
+            sleep 5
+            sudo apt-get update --fix-missing || true
+          done
 
       - name: Cache ccache & iOS SDK/Toolchain
         uses: actions/cache@v4
@@ -209,8 +268,23 @@ jobs:
 
       - name: Install NDK Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          sudo tee /etc/apt/apt.conf.d/99-ci-robust >/dev/null <<'EOF'
+          Acquire::Retries "10";
+          Acquire::http::Timeout "15";
+          Acquire::https::Timeout "15";
+          Acquire::http::Pipeline-Depth "0";
+          Acquire::Queue-Mode "access";
+          EOF
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo tee /etc/apt/apt-mirrors.txt >/dev/null <<'EOF'
+          http://mirrors.edge.kernel.org/ubuntu/
+          http://archive.ubuntu.com/ubuntu/
+          http://security.ubuntu.com/ubuntu/
+          EOF
+          fi
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://mirrors.edge.kernel.org/ubuntu|g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          sudo apt-get update || true
+          sudo apt-get install -y --fix-missing \
             libncurses5 \
             libtinfo5 \
             lib32z1 \
