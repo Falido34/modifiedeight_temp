@@ -1,5 +1,7 @@
 #include <gui/screens/FirstLaunchAcknowledgementScreen.hpp>
+#include <gui/screens/PatchErrorScreen.hpp>
 #include <Minecraft.hpp>
+#include <patch/PatchManager.hpp>
 #include <gui/elements/Label.hpp>
 #include <gui/elements/TextBox.hpp>
 #include <gui/NinePatchFactory.hpp>
@@ -29,6 +31,12 @@ void FirstLaunchAcknowledgementScreen::render(int32_t a2, int32_t a3, float a4) 
 }
 
 void FirstLaunchAcknowledgementScreen::init() {
+	if (PatchManager::instance().hasError()) {
+		std::string patchStartupErr = PatchManager::instance().getLastError();
+		PatchManager::instance().clearError();
+		this->minecraft->setScreen(new PatchErrorScreen(patchStartupErr, PatchErrorScreen::RETURN_START_MENU, false));
+		return;
+	}
 	this->headerButton = std::shared_ptr<Button>(new Touch::THeader(0, "READ THIS"));
 	this->confirmButton = std::shared_ptr<Button>(new Touch::TButton(1, "I confirm", this->minecraft));
 	this->messageLabel = std::shared_ptr<Label>(new Label(

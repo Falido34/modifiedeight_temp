@@ -3,10 +3,12 @@
 #include <Minecraft.hpp>
 #include <gui/ControllerLayoutOption.hpp>
 #include <gui/LoginOption.hpp>
+#include <gui/PatchOptionItem.hpp>
 #include <gui/buttons/OptionButton.hpp>
 #include <gui/elements/OptionsItem.hpp>
 #include <gui/elements/Slider.hpp>
 #include <gui/elements/TextBox.hpp>
+#include <patch/PatchManager.hpp>
 #include <rendering/Font.hpp>
 #include <string.h>
 #include <util/ImageDef.hpp>
@@ -22,6 +24,25 @@ void OptionsGroup::addLoginItem(Minecraft* a2) {
 }
 OptionsGroup* OptionsGroup::addControllerLayoutItem(Minecraft* a2, bool_t a3) {
 	this->addChild(std::shared_ptr<ControllerLayoutOption>(new ControllerLayoutOption(a2, a3)));
+	this->setupPositions();
+	return this;
+}
+OptionsGroup* OptionsGroup::addPatchesManageItem(Minecraft* a2, bool_t a3) {
+	this->addChild(std::shared_ptr<PatchesManageOption>(new PatchesManageOption(a2, a3)));
+	this->setupPositions();
+	return this;
+}
+OptionsGroup* OptionsGroup::addPatchesSection(Minecraft* a2, bool_t a3) {
+	PatchManager::instance().scanPatches();
+	this->addPatchesManageItem(a2, a3);
+	const auto& patches = PatchManager::instance().getPatches();
+	for (const auto& p : patches) {
+		std::string label = p.displayName;
+		if (!p.version.empty()) {
+			label += " v" + p.version;
+		}
+		this->addChild(std::shared_ptr<PatchToggleOption>(new PatchToggleOption(a2, p.id, label, p.enabled, a3)));
+	}
 	this->setupPositions();
 	return this;
 }

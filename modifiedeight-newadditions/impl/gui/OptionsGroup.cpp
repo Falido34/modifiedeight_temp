@@ -3,7 +3,9 @@
 #include <Minecraft.hpp>
 #include <gui/ControllerLayoutOption.hpp>
 #include <gui/LoginOption.hpp>
+#include <gui/PatchOptionItem.hpp>
 #include <gui/buttons/OptionButton.hpp>
+#include <patch/PatchManager.hpp>
 #include <gui/elements/OptionsItem.hpp>
 #include <gui/elements/Slider.hpp>
 #include <gui/elements/TextBox.hpp>
@@ -22,6 +24,24 @@ void OptionsGroup::addLoginItem(Minecraft* a2) {
 }
 OptionsGroup* OptionsGroup::addControllerLayoutItem(Minecraft* a2, bool_t a3) {
 	this->addChild(std::shared_ptr<ControllerLayoutOption>(new ControllerLayoutOption(a2, a3)));
+	this->setupPositions();
+	return this;
+}
+OptionsGroup* OptionsGroup::addPatchesManageItem(Minecraft* a2, bool_t a3) {
+	PatchManager::instance().scanPatches();
+	this->addChild(std::shared_ptr<PatchesManageOption>(new PatchesManageOption(a2, a3)));
+	this->setupPositions();
+	return this;
+}
+OptionsGroup* OptionsGroup::addPatchesSection(Minecraft* a2, bool_t a3) {
+	PatchManager& pm = PatchManager::instance();
+	pm.scanPatches();
+	this->addChild(std::shared_ptr<PatchesManageOption>(new PatchesManageOption(a2, a3)));
+	for (const auto& p : pm.getPatches()) {
+		std::string label = p.displayName;
+		if (!p.loadError.empty()) label += " [Error]";
+		this->addChild(std::shared_ptr<PatchToggleOption>(new PatchToggleOption(a2, p.id, label, p.enabled, a3)));
+	}
 	this->setupPositions();
 	return this;
 }

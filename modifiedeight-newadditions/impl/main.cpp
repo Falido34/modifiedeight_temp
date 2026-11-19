@@ -13,12 +13,15 @@
 #include <unigl.h>
 
 #include <CrashHandler.hpp>
+#include <patch/PatchManager.hpp>
 
 AppPlatform_sdl appPlatform;
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 #include <windows.h>
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
 	CrashHandler::install();
+	PatchManager::instance().handleCommandLine(__argc, __argv);
+	PatchManager::instance().maybeRelaunchIntoPatchedOnBoot();
 	struct timeval start;
 	gettimeofday(&start, 0);
 	startedAtSec = start.tv_sec;
@@ -31,6 +34,8 @@ int main(int argc, char** argv) {
 #else
 int main(int argc, char** argv) {
 	CrashHandler::install();
+	PatchManager::instance().handleCommandLine(argc, argv);
+	PatchManager::instance().maybeRelaunchIntoPatchedOnBoot();
 	struct timeval start;
 	gettimeofday(&start, 0);
 	startedAtSec = start.tv_sec;
@@ -50,6 +55,7 @@ int main(int argc, char** argv) {
 #include <cpputils.hpp>
 #include <unigl.h>
 #include <string.h>
+#include <patch/PatchManager.hpp>
 
 bool contextWasLost;
 ENGINE* pEngine;
@@ -101,6 +107,7 @@ void android_main(struct android_app* state) {
 	const char* utfChars = env->GetStringUTFChars(v14, 0);
 	mc->dataPathMaybe = utfChars;
 	mc->field_CC4 = utfChars;
+	PatchManager::instance().setDataPath(utfChars);
 	env->ReleaseStringUTFChars(v14, utfChars);
 	activity->vm->DetachCurrentThread();
 	if(state->savedState){

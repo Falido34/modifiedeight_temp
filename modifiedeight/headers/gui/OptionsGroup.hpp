@@ -9,6 +9,8 @@ struct OptionsGroup: GuiElementContainer
 	OptionsGroup(std::string);
 	void addLoginItem(Minecraft*);
 	OptionsGroup* addControllerLayoutItem(Minecraft*, bool_t);
+	OptionsGroup* addPatchesManageItem(Minecraft*, bool_t);
+	OptionsGroup* addPatchesSection(Minecraft*, bool_t);
 	void createTextBox(const Options::Option*, Minecraft*);
 
 	virtual ~OptionsGroup();

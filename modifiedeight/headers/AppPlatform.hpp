@@ -78,6 +78,8 @@ struct AppPlatform{
 	int32_t getPreloadingHTMLLength(void);
 	void loadImage(ImageData&, const std::string&, bool_t);
 	TextureData loadTexture(const std::string&, bool_t);
+	static void clearAssetPathCache();
+	static void clearAssetCache() { clearAssetPathCache(); }
 	void removeListener(AppPlatform::Listener*);
 	void addListener(AppPlatform::Listener*, float);
 };

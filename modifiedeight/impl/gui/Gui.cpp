@@ -3,6 +3,7 @@
 #include <entity/LocalPlayer.hpp>
 #include <entity/player/gamemode/GameMode.hpp>
 #include <gui/Gui.hpp>
+#include <patch/PatchManager.hpp>
 #include <input/IInputHolder.hpp>
 #include <input/Mouse.hpp>
 #include <inventory/Inventory.hpp>
@@ -472,6 +473,7 @@ void Gui::render(float a2, bool_t a3, int32_t a4, int32_t a5) {
         font->drawShadow(this->tipMessage,
                          (float)(v21 * 0.5) - (float)(v20 * 0.5), v23, v24);
       }
+      PatchManager::instance().runHudRenderCallbacks(this->minecraftInst, this);
       this->renderChatMessages(v15, v16, 0xAu, this->field_A94, font);
       if (!this->minecraftInst->currentScreen) {
         this->renderOnSelectItemNameText(v15, font, v16 - 19);

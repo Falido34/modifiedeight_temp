@@ -1,6 +1,8 @@
 #include <Minecraft.hpp>
 #include <gui/screens/SplashScreen.hpp>
 #include <gui/screens/FirstLaunchAcknowledgementScreen.hpp>
+#include <gui/screens/PatchErrorScreen.hpp>
+#include <patch/PatchManager.hpp>
 #include <math.h>
 #include <algorithm>
 #include <rendering/Font.hpp>
@@ -23,9 +25,15 @@ bool_t SplashScreen::renderGameBehind() { return 0; }
 bool_t SplashScreen::handleBackEvent(bool_t) { return 0; }
 
 void SplashScreen::tick() {
+  if (this->timer >= this->duration) return;
   this->timer += 0.05f;
   if (this->timer >= this->duration) {
-    if (!this->minecraft->options.firstLaunchAcknowledged) {
+    this->duration = 1e9f;
+    if (PatchManager::instance().hasError()) {
+      this->minecraft->setScreen(new PatchErrorScreen(
+          PatchManager::instance().getLastError(),
+          PatchErrorScreen::RETURN_START_MENU, false));
+    } else if (!this->minecraft->options.firstLaunchAcknowledged) {
       this->minecraft->setScreen(new FirstLaunchAcknowledgementScreen());
     } else {
       this->minecraft->screenChooser.setScreen(START_MENU_SCREEN);

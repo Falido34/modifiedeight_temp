@@ -4,6 +4,7 @@
 #include <_AssetFile.hpp>
 #include <algorithm>
 #include <network/mco/LoginInformation.hpp>
+#include <patch/PatchManager.hpp>
 #include <util/Util.hpp>
 #include <utils.h>
 
@@ -764,12 +765,22 @@ static AssetFile readTexturePackFile(const std::string &path) {
   return AssetFile(0, -1);
 }
 
+static uint64_t s_cacheEpoch = 0;
+
+void AppPlatform::clearAssetPathCache() {
+  ++s_cacheEpoch;
+}
+
 AssetFile AppPlatform::readAssetFile(const std::string &path) {
   if (path == "icon.jpg" || path == "assets/icon.jpg" ||
       path == "images/icon.jpg") {
     uint8_t *arr = new uint8_t[g_iconJpgSize];
     memcpy(arr, g_iconJpgData, g_iconJpgSize);
     return AssetFile(arr, (int32_t)g_iconJpgSize);
+  }
+  AssetFile patchFile = PatchManager::instance().readAssetFile(path);
+  if (patchFile.bytes && patchFile.length > 0) {
+    return patchFile;
   }
   AssetFile packFile = readTexturePackFile(path);
   if (packFile.bytes && packFile.length > 0) {
@@ -780,10 +791,16 @@ AssetFile AppPlatform::readAssetFile(const std::string &path) {
     static std::unordered_map<std::string, std::string> s_resolvedPaths;
     static std::unordered_set<std::string> s_missingPaths;
     static std::mutex s_assetMutex;
+    static uint64_t s_seenEpoch = 0;
 
     std::string cachedResolved;
     {
       std::lock_guard<std::mutex> lock(s_assetMutex);
+      if (s_seenEpoch != s_cacheEpoch) {
+        s_resolvedPaths.clear();
+        s_missingPaths.clear();
+        s_seenEpoch = s_cacheEpoch;
+      }
       if (s_missingPaths.count(path)) {
         return AssetFile(0, -1);
       }
@@ -908,6 +925,24 @@ void AppPlatform::loadImage(ImageData &image, const std::string &name,
   }
 }
 TextureData AppPlatform::loadTexture(const std::string &a3, bool_t a4) {
+  AssetFile patchFile = PatchManager::instance().readAssetFile(a3);
+  if (patchFile.bytes && patchFile.length > 0) {
+    TextureData data;
+    int32_t channels;
+    uint8_t *pix = stbi_load_from_memory(patchFile.bytes, patchFile.length,
+                                         &data.width, &data.height,
+                                         &channels, STBI_rgb_alpha);
+    delete[] patchFile.bytes;
+    if (pix) {
+      data.pixels = pix;
+      data.field_C = 0;
+      data.field_10 = 0;
+      data.lod = 0;
+      data.field_18 = 0;
+      data.glTexId = 0;
+      return data;
+    }
+  }
   AssetFile packFile = readTexturePackFile(a3);
   if (packFile.bytes && packFile.length > 0) {
     TextureData data;

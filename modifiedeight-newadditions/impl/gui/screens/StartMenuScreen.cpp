@@ -1,8 +1,10 @@
 #include <Minecraft.hpp>
 #include <gui/screens/InvalidLicenseScreen.hpp>
 #include <gui/screens/OptionsScreen.hpp>
+#include <gui/screens/PatchesScreen.hpp>
 #include <gui/screens/PlayScreen.hpp>
 #include <gui/screens/StartMenuScreen.hpp>
+#include <patch/PatchManager.hpp>
 #include <rendering/Font.hpp>
 #include <rendering/Tesselator.hpp>
 #include <rendering/Textures.hpp>
@@ -93,7 +95,7 @@ void StartMenuScreen::init() {
   this->field_2C.emplace_back(&this->joinGameButton);
   this->buttons.emplace_back(&this->optionsButton);
   this->field_2C.emplace_back(&this->optionsButton);
-  this->mojangABMaybe = "\xFFMojang AB, ModifiedEight New Additions 1.8.0.1_build1 ";
+  this->mojangABMaybe = "\xFFMojang AB, ModifiedEight New Additions 1.8.0.1_build2 ";
   this->gameVersion = Common::getGameVersionString();
   this->optionsButton.active = 0;
   this->startGameButton.active = 0;
@@ -139,7 +141,18 @@ bool_t StartMenuScreen::handleBackEvent(bool_t a2) {
   this->minecraft->quit();
   return 1;
 }
-void StartMenuScreen::tick() { this->_updateLicense(); }
+void StartMenuScreen::tick() {
+  this->_updateLicense();
+  static bool s_bootDirtyCheckDone = false;
+  if (!s_bootDirtyCheckDone && this->minecraft && this->minecraft->currentScreen == this) {
+    s_bootDirtyCheckDone = true;
+    if (PatchManager::instance().needsCodeRebuildOrRelaunch()) {
+      PatchesScreen* ps = new PatchesScreen(true, false);
+      this->minecraft->setScreen(ps);
+      ps->commitPatchSelectionChange(std::vector<std::string>());
+    }
+  }
+}
 bool_t StartMenuScreen::isInGameScreen() { return 0; }
 void StartMenuScreen::buttonClicked(Button *a2) {
   if (a2->buttonID == this->startGameButton.buttonID) {

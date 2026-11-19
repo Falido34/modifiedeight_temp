@@ -1,6 +1,7 @@
 #include <rendering/TextureAtlas.hpp>
 #include <NinecraftApp.hpp>
 #include <_AssetFile.hpp>
+#include <patch/PatchManager.hpp>
 #include <json/reader.h>
 #include <cstdio>
 #include <rendering/TextureAtlasTextureItem.hpp>
@@ -340,6 +341,45 @@ void TextureAtlas::load(struct NinecraftApp* mc) {
 				vec.emplace_back(uv);
 				this->field_4[cs] = TextureAtlasTextureItem(cs, uv, vec);
 			}
+		}
+
+		std::vector<std::string> patchSlots = PatchManager::instance().collectTextureNamesFromActivePatches(is_terrain);
+		std::string patchBasePath = is_terrain ? "textures/blocks/" : "textures/items/";
+		for (const std::string& pName : patchSlots) {
+			if (this->field_4.find(pName) != this->field_4.end()) continue;
+			std::string img_path = patchBasePath + pName + ".png";
+			uint8_t* pixels = load_and_resize_png(mc, img_path, 16, 16);
+			if (!pixels) continue;
+
+			int sx = (slot_idx % slots_per_row) * 16;
+			int sy = atlas_base_h + (slot_idx / slots_per_row) * 16;
+			if (sy + 16 > atlas_h) {
+				free(pixels);
+				break;
+			}
+			slot_idx++;
+
+			paste_texture(atlas_pixels, atlas_w, atlas_h, pixels, sx, sy, 16, 16);
+			free(pixels);
+
+			float min_x = sx / (float)atlas_w;
+			float max_x = (sx + 16) / (float)atlas_w;
+			float min_y = sy / (float)atlas_h;
+			float max_y = (sy + 16) / (float)atlas_h;
+			float inset_x = (max_x - min_x) * 0.002f;
+			float inset_y = (max_y - min_y) * 0.002f;
+
+			TextureUVCoordinateSet uv;
+			uv.width = atlas_w;
+			uv.height = atlas_h;
+			uv.minX = min_x + inset_x;
+			uv.maxX = max_x - inset_x;
+			uv.minY = min_y + inset_y;
+			uv.maxY = max_y - inset_y;
+
+			std::vector<TextureUVCoordinateSet> vec;
+			vec.emplace_back(uv);
+			this->field_4[pName] = TextureAtlasTextureItem(pName, uv, vec);
 		}
 	}
 }

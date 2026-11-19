@@ -420,6 +420,10 @@ bool_t I18n::get(const std::string &a1, std::string &a2) {
     a2 = "Texture Packs button";
     return 1;
   }
+  if (a1 == "options.patches") {
+    a2 = "Patches";
+    return 1;
+  }
   if (a1 == "options.fogenabled") {
     a2 = "Fog";
     return 1;
@@ -712,6 +716,8 @@ std::string I18n::get(const std::string &a2) {
     return "Loads textures from terrain-atlas / items-opaque";
   if (a2 == "options.marketplace")
     return "Texture Packs button";
+  if (a2 == "options.patches")
+    return "Patches";
   if (a2 == "options.fogenabled")
     return "Fog";
   if (a2 == "options.morningfog")

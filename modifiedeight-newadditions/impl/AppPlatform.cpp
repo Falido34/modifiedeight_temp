@@ -2,6 +2,7 @@
 #include <ImageData.hpp>
 #include <Options.hpp>
 #include <_AssetFile.hpp>
+#include <patch/PatchManager.hpp>
 #include <algorithm>
 #include <network/mco/LoginInformation.hpp>
 #include <util/Util.hpp>
@@ -771,6 +772,16 @@ static AssetFile readTexturePackFile(const std::string &path) {
   return AssetFile(0, -1);
 }
 
+static std::unordered_map<std::string, std::string> s_resolvedAssetPaths;
+static std::unordered_set<std::string> s_missingAssetPaths;
+static std::mutex s_assetLookupMutex;
+
+void AppPlatform::clearAssetCache() {
+  std::lock_guard<std::mutex> lock(s_assetLookupMutex);
+  s_resolvedAssetPaths.clear();
+  s_missingAssetPaths.clear();
+}
+
 AssetFile AppPlatform::readAssetFile(const std::string &path) {
   if (path == "icon.jpg" || path == "assets/icon.jpg" ||
       path == "images/icon.jpg") {
@@ -778,24 +789,24 @@ AssetFile AppPlatform::readAssetFile(const std::string &path) {
     memcpy(arr, g_iconJpgData, g_iconJpgSize);
     return AssetFile(arr, (int32_t)g_iconJpgSize);
   }
+  AssetFile patchFile = PatchManager::instance().readAssetFile(path);
+  if (patchFile.bytes && patchFile.length > 0) {
+    return patchFile;
+  }
   AssetFile packFile = readTexturePackFile(path);
   if (packFile.bytes && packFile.length > 0) {
     return packFile;
   }
   FILE *f = nullptr;
   {
-    static std::unordered_map<std::string, std::string> s_resolvedPaths;
-    static std::unordered_set<std::string> s_missingPaths;
-    static std::mutex s_assetMutex;
-
     std::string cachedResolved;
     {
-      std::lock_guard<std::mutex> lock(s_assetMutex);
-      if (s_missingPaths.count(path)) {
+      std::lock_guard<std::mutex> lock(s_assetLookupMutex);
+      if (s_missingAssetPaths.count(path)) {
         return AssetFile(0, -1);
       }
-      auto it = s_resolvedPaths.find(path);
-      if (it != s_resolvedPaths.end()) {
+      auto it = s_resolvedAssetPaths.find(path);
+      if (it != s_resolvedAssetPaths.end()) {
         cachedResolved = it->second;
       }
     }
@@ -803,8 +814,8 @@ AssetFile AppPlatform::readAssetFile(const std::string &path) {
     if (!cachedResolved.empty()) {
       f = fopen(cachedResolved.c_str(), "rb");
       if (!f) {
-        std::lock_guard<std::mutex> lock(s_assetMutex);
-        s_resolvedPaths.erase(path);
+        std::lock_guard<std::mutex> lock(s_assetLookupMutex);
+        s_resolvedAssetPaths.erase(path);
       }
     }
 
@@ -879,11 +890,11 @@ AssetFile AppPlatform::readAssetFile(const std::string &path) {
         }
       }
 
-      std::lock_guard<std::mutex> lock(s_assetMutex);
+      std::lock_guard<std::mutex> lock(s_assetLookupMutex);
       if (f && !foundPath.empty()) {
-        s_resolvedPaths[path] = foundPath;
+        s_resolvedAssetPaths[path] = foundPath;
       } else {
-        s_missingPaths.insert(path);
+        s_missingAssetPaths.insert(path);
       }
     }
   }
@@ -953,6 +964,35 @@ void AppPlatform::loadImage(ImageData &image, const std::string &name,
   }
 }
 TextureData AppPlatform::loadTexture(const std::string &a3, bool_t a4) {
+  bool isTerrainAtlas = (a3 == "terrain-atlas.tga" || a3 == "terrain.png" || a3 == "images/terrain-atlas.tga");
+  bool isItemsAtlas = (a3 == "items-opaque.png" || a3 == "gui/items.png" || a3 == "images/items-opaque.png");
+
+  if (!isTerrainAtlas && !isItemsAtlas) {
+    std::string patchId, patchDiskPath;
+    AssetFile patchTex = PatchManager::instance().readAssetFile(a3, &patchId, &patchDiskPath);
+    if (patchTex.bytes && patchTex.length > 0) {
+      TextureData data;
+      int32_t channels;
+      uint8_t *pix = stbi_load_from_memory(patchTex.bytes, patchTex.length,
+                                           &data.width, &data.height,
+                                           &channels, STBI_rgb_alpha);
+      delete[] patchTex.bytes;
+      if (pix) {
+        data.pixels = pix;
+        data.field_C = 0;
+        data.field_10 = 0;
+        data.lod = 0;
+        data.field_18 = 0;
+        data.glTexId = 0;
+        return data;
+      }
+      const char* reason = stbi_failure_reason();
+      PatchManager::instance().reportError(
+          "Failed to decode patched texture '" + a3 + "' from patch '" + patchId + "': " +
+          (reason ? reason : "invalid image data"));
+    }
+  }
+
   AssetFile packFile = readTexturePackFile(a3);
   if (packFile.bytes && packFile.length > 0) {
     TextureData data;

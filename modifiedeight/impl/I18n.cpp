@@ -66,6 +66,7 @@ std::string I18n::getDescriptionString(const struct ItemInstance& a2) {
 bool_t I18n::get(const std::string& a1, std::string& a2) {
 	if (a1 == "options.newadditions") { a2 = "ModifiedEight Classic"; return 1; }
 	if (a1 == "options.newadditions.desc") { a2 = "ModifiedEight Classic Options"; return 1; }
+	if (a1 == "options.group.patches") { a2 = "Patches"; return 1; }
 	if (a1 == "options.clientmode") { a2 = "Client mode"; return 1; }
 	if (a1 == "options.sprint") { a2 = "Sprint"; return 1; }
 	if (a1 == "options.sprint.desc") { a2 = "Enables sprinting (double-tap forward)"; return 1; }
@@ -118,6 +119,7 @@ bool_t I18n::get(const std::string& a1, std::string& a2) {
 std::string I18n::get(const std::string& a2) {
 	if (a2 == "options.newadditions") return "ModifiedEight Classic";
 	if (a2 == "options.newadditions.desc") return "ModifiedEight Classic Options";
+	if (a2 == "options.group.patches") return "Patches";
 	if (a2 == "options.clientmode") return "Client mode";
 	if (a2 == "options.sprint") return "Sprint";
 	if (a2 == "options.sprint.desc") return "Enables sprinting (double-tap forward)";

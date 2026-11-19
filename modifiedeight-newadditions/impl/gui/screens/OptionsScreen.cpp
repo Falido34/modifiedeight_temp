@@ -4,10 +4,15 @@
 #include <gui/OptionsGroup.hpp>
 #include <gui/pane/OptionsPane.hpp>
 #include <gui/buttons/CategoryButton.hpp>
+#include <gui/screens/PatchErrorScreen.hpp>
 #include <gui/screens/PauseScreen.hpp>
+#include <patch/PatchManager.hpp>
+#include <rendering/Font.hpp>
 #include <gui/buttons/Touch_TButton.hpp>
 #include <gui/buttons/Touch_THeader.hpp>
 #include <gui/NinePatchFactory.hpp>
+#include <gui/NinePatchLayer.hpp>
+#include <rendering/Tesselator.hpp>
 #include <util/IntRectangle.hpp>
 #include <cpputils.hpp>
 
@@ -57,12 +62,14 @@ void OptionsScreen::createCategoryButtons(void) {
 	int32_t v8 = this->createCategoryButton(v7, this->field_88, v11, 106, 0, 0, 0);
 	int32_t v9 = this->createCategoryButton(v8, this->field_88, v11, 134, 28, 0, 0);
 	int32_t v10 = this->createCategoryButton(v9, this->field_88, v11, 106, 28, 0, 0);
-	this->createCategoryButton(v10, this->field_88, v11, 134, 56, 0, 0);
+	int32_t v12 = this->createCategoryButton(v10, this->field_88, v11, 134, 56, 0, 0);
+	this->createCategoryButton(v12, this->field_88, v11, 106, 56, 0, 0);
 }
 void OptionsScreen::generateOptionScreens(void) {
 	for (auto p : this->optionPanes) delete p;
 	this->optionPanes.clear();
 
+	this->optionPanes.emplace_back(new OptionsPane());
 	this->optionPanes.emplace_back(new OptionsPane());
 	this->optionPanes.emplace_back(new OptionsPane());
 	this->optionPanes.emplace_back(new OptionsPane());
@@ -94,6 +101,9 @@ void OptionsScreen::generateOptionScreens(void) {
 		grp->addOptionItem(&Options::Option::CLASSIC_GUI, this->minecraft);
 		grp->addOptionItem(&Options::Option::NEON_COLOR_THEME, this->minecraft);
 	}
+
+	this->optionPanes[5]->createOptionsGroup("options.patches")->addPatchesSection(this->minecraft, this->isInWorld);
+	PatchManager::instance().runPatchOptionsCallbacks(this->optionPanes[5], this->minecraft);
 }
 void OptionsScreen::selectCategory(int32_t a2) {
 	int32_t v2 = 0;
@@ -181,6 +191,57 @@ void OptionsScreen::render(int32_t a2, int32_t a3, float a4) {
 				showRestartNotice = false;
 			}
 		}
+
+		if (PatchManager::instance().isBuildRunning() && this->font) {
+			this->fill(0, 0, this->width, this->height, 0x88000000);
+			int dw = (this->width - 24 < 280) ? (this->width - 24) : 280;
+			int dh = 68;
+			int dx = (this->width - dw) / 2;
+			int dy = (this->height - dh) / 2;
+			if (!this->minecraft->options.classicGUI) {
+				int32_t colorA, colorB;
+				this->minecraft->options.getNeonColors(colorA, colorB);
+				int32_t glowCol = (colorA & 0x00FFFFFF) | 0x44000000;
+				this->fill(dx - 2, dy - 2, dx + dw + 2, dy + dh + 2, glowCol);
+				this->fillGradient(dx + 1, dy + 1, dx + dw - 1, dy + dh - 1, 0xF00D0214, 0xF01E042D);
+				this->fill(dx, dy, dx + dw, dy + 1, colorA);
+				this->fill(dx, dy + dh - 1, dx + dw, dy + dh, colorA);
+				this->fill(dx, dy, dx + 1, dy + dh, colorA);
+				this->fill(dx + dw - 1, dy, dx + dw, dy + dh, colorA);
+				this->fill(dx + 8, dy + 22, dx + dw - 8, dy + 23, (colorB & 0x00FFFFFF) | 0x88000000);
+				// Animated neon activity bar
+				int barX0 = dx + 14;
+				int barX1 = dx + dw - 14;
+				int barW = barX1 - barX0;
+				this->fill(barX0, dy + dh - 13, barX1, dy + dh - 8, 0x88000000);
+				if (barW > 20) {
+					static int animTick = 0;
+					animTick = (animTick + 1) % 120;
+					int segW = barW / 3;
+					int pos = (animTick < 60) ? ((animTick * (barW - segW)) / 60) : (((120 - animTick) * (barW - segW)) / 60);
+					this->fill(barX0 + pos, dy + dh - 13, barX0 + pos + segW, dy + dh - 8, colorB);
+				}
+			} else {
+				NinePatchFactory npf(this->minecraft->texturesPtr, "gui/spritesheet.png");
+				NinePatchLayer* dlgBg = npf.createSymmetrical({34, 43, 14, 14}, 3, 3, (float)dw, (float)dh);
+				if (dlgBg) {
+					dlgBg->draw(Tesselator::instance, (float)dx, (float)dy);
+					delete dlgBg;
+				}
+				NinePatchLayer* insetBg = npf.createSymmetrical({0, 32, 8, 8}, 2, 2, (float)(dw - 16), 24.0f);
+				if (insetBg) {
+					insetBg->draw(Tesselator::instance, (float)(dx + 8), (float)(dy + 26));
+					delete insetBg;
+				}
+			}
+			this->drawCenteredString(this->font, "Applying Patches...", this->width / 2, dy + 9, 0xFFFFFF66);
+			std::string status = PatchManager::instance().getBuildStatus();
+			while (status.size() > 3 && this->font->width(status) > dw - 20) {
+				status.resize(status.size() - 4);
+				status += "...";
+			}
+			this->drawCenteredString(this->font, status, this->width / 2, dy + 33, 0xFFEEEEEE);
+		}
 	}
 }
 void OptionsScreen::init() {
@@ -201,10 +262,20 @@ void OptionsScreen::init() {
 }
 void OptionsScreen::setupPositions() {
 	int32_t v2 = this->field_60.size();
-	int32_t v3 = (this->height - this->headerOptions->height - 3 - (v2 * this->field_88 + 2 * (v2 + 0x7FFFFFFF))) / 2;
+	int32_t availH = this->height - this->headerOptions->height - 6;
+	int32_t btnH = this->field_88;
+	int32_t step = btnH + 1;
+	if (v2 > 0 && v2 * step > availH) {
+		step = availH / v2;
+		if (step < 18) step = 18;
+		btnH = step - 1;
+	}
+	int32_t v3 = (availH - (v2 * step - 1)) / 2;
+	if (v3 < 0) v3 = 0;
 
 	for(int32_t i = 0; i < this->field_60.size(); ++i) {
-		this->field_60[i]->posY = this->headerOptions->height + 3 + v3 + 29 * i;
+		this->field_60[i]->height = btnH;
+		this->field_60[i]->posY = this->headerOptions->height + 3 + v3 + step * i;
 		this->field_60[i]->posX = 5;
 	}
 	this->buttonBack->posX = 4;
@@ -227,6 +298,7 @@ void OptionsScreen::setupPositions() {
 	this->selectCategory(startCategory);
 }
 bool_t OptionsScreen::handleBackEvent(bool_t a2) {
+	if (PatchManager::instance().isBuildRunning()) return 1;
 	if(!a2) {
 		if(!this->selectedCategory || !this->selectedCategory->suppressOtherGUI() || !this->selectedCategory->backPressed(this->minecraft, 0)) {
 			this->closeScreen();
@@ -235,6 +307,22 @@ bool_t OptionsScreen::handleBackEvent(bool_t a2) {
 	return 1;
 }
 void OptionsScreen::tick() {
+	PatchManager& pm = PatchManager::instance();
+	bool ok = false, willRelaunch = false;
+	std::string err;
+	if (pm.pollAsyncResult(ok, willRelaunch, err)) {
+		if (!ok) {
+			this->minecraft->setScreen(new PatchErrorScreen(err, PatchErrorScreen::RETURN_OPTIONS, this->isInWorld));
+			return;
+		}
+		if (willRelaunch) {
+			if (!pm.relaunchPendingBinary()) {
+				this->minecraft->setScreen(new PatchErrorScreen(pm.getLastError(), PatchErrorScreen::RETURN_OPTIONS, this->isInWorld));
+			}
+			return;
+		}
+	}
+
 	static int lastNewAdditions = this->minecraft->options.newAdditions;
 	if (this->minecraft->options.newAdditions != lastNewAdditions) {
 		lastNewAdditions = this->minecraft->options.newAdditions;
@@ -266,6 +354,7 @@ void OptionsScreen::setTextboxText(const std::string& a2) {
 	}
 }
 void OptionsScreen::buttonClicked(Button* a2) {
+	if (PatchManager::instance().isBuildRunning()) return;
 	if(a2 == this->buttonBack) {
 		this->closeScreen();
 	} else {
@@ -276,6 +365,7 @@ void OptionsScreen::buttonClicked(Button* a2) {
 	}
 }
 void OptionsScreen::mouseClicked(int32_t a2, int32_t a3, int32_t a4) {
+	if (PatchManager::instance().isBuildRunning()) return;
 	if (a4 == 4 || a4 == 5) {
 		if (this->selectedCategory && this->selectedCategory->scrollingPane) {
 			float dir = (a4 == 4) ? 20.0f : -20.0f;

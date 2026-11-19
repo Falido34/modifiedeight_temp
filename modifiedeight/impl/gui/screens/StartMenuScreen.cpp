@@ -1,8 +1,10 @@
 #include <Minecraft.hpp>
 #include <gui/screens/InvalidLicenseScreen.hpp>
 #include <gui/screens/OptionsScreen.hpp>
+#include <gui/screens/PatchErrorScreen.hpp>
 #include <gui/screens/PlayScreen.hpp>
 #include <gui/screens/StartMenuScreen.hpp>
+#include <patch/PatchManager.hpp>
 #include <rendering/Font.hpp>
 #include <rendering/Tesselator.hpp>
 #include <rendering/Textures.hpp>
@@ -86,13 +88,19 @@ void StartMenuScreen::render(int32_t a2, int32_t a3, float a4) {
   Screen::render(a2, a3, a4);
 }
 void StartMenuScreen::init() {
+  if (PatchManager::instance().hasError()) {
+    std::string patchStartupErr = PatchManager::instance().getLastError();
+    PatchManager::instance().clearError();
+    this->minecraft->setScreen(new PatchErrorScreen(patchStartupErr, PatchErrorScreen::RETURN_START_MENU, false));
+    return;
+  }
   this->buttons.emplace_back(&this->startGameButton);
   this->buttons.emplace_back(&this->joinGameButton);
   this->field_2C.emplace_back(&this->startGameButton);
   this->field_2C.emplace_back(&this->joinGameButton);
   this->buttons.emplace_back(&this->optionsButton);
   this->field_2C.emplace_back(&this->optionsButton);
-  this->mojangABMaybe = "\xFFMojang AB, ModifiedEight Classic 1.8.0_build1 ";
+  this->mojangABMaybe = "\xFFMojang AB, ModifiedEight Classic 1.8.0_build2 ";
   this->gameVersion = Common::getGameVersionString();
   this->optionsButton.active = 0;
   this->startGameButton.active = 0;

@@ -8,6 +8,7 @@
 #include <AppPlatform.hpp>
 #include <App.hpp>
 #include <AppPlatform_sdl.hpp>
+#include <patch/PatchManager.hpp>
 #include <utf8proc.h>
 #include <util/Util.hpp>
 #include <unigl.h>
@@ -16,6 +17,8 @@ AppPlatform_sdl appPlatform;
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 #include <windows.h>
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
+	PatchManager::instance().handleCommandLine(__argc, __argv);
+	PatchManager::instance().maybeRelaunchIntoPatchedOnBoot();
 	struct timeval start;
 	gettimeofday(&start, 0);
 	startedAtSec = start.tv_sec;
@@ -27,6 +30,8 @@ int main(int argc, char** argv) {
 }
 #else
 int main(int argc, char** argv) {
+	PatchManager::instance().handleCommandLine(argc, argv);
+	PatchManager::instance().maybeRelaunchIntoPatchedOnBoot();
 	struct timeval start;
 	gettimeofday(&start, 0);
 	startedAtSec = start.tv_sec;

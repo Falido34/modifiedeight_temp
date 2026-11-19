@@ -1,5 +1,7 @@
 #include <gui/screens/FirstLaunchAcknowledgementScreen.hpp>
+#include <gui/screens/PatchErrorScreen.hpp>
 #include <Minecraft.hpp>
+#include <patch/PatchManager.hpp>
 #include <gui/elements/Label.hpp>
 #include <gui/elements/TextBox.hpp>
 #include <gui/NinePatchFactory.hpp>
@@ -98,5 +100,11 @@ void FirstLaunchAcknowledgementScreen::buttonClicked(Button* button) {
 
 	this->minecraft->options.firstLaunchAcknowledged = 1;
 	this->minecraft->options.save();
-	this->minecraft->screenChooser.setScreen(START_MENU_SCREEN);
+	if (PatchManager::instance().hasError()) {
+		this->minecraft->setScreen(new PatchErrorScreen(
+			PatchManager::instance().getLastError(),
+			PatchErrorScreen::RETURN_START_MENU, false));
+	} else {
+		this->minecraft->screenChooser.setScreen(START_MENU_SCREEN);
+	}
 }

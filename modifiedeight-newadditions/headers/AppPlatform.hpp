@@ -30,6 +30,7 @@ struct AppPlatform{
 	static GLfloat ANISOTROPIC_MAX_LEVEL;
 	//XXX might be not char_t
 	static char_t* preloadingHTML;
+	static void clearAssetCache();
 
 	AppPlatform(void);
 

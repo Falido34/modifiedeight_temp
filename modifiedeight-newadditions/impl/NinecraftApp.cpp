@@ -35,6 +35,7 @@
 #include <tile/material/Material.hpp>
 #include <unigl.h>
 #include <input/Multitouch.hpp>
+#include <patch/PatchManager.hpp>
 
 std::shared_ptr<TextureAtlas> NinecraftApp::_itemsTextureAtlas;
 std::shared_ptr<TextureAtlas> NinecraftApp::_terrainTextureAtlas;
@@ -192,6 +193,8 @@ void NinecraftApp::handleBack(void){
 	this->some_std_vec.push_back(1); //TODO check
 }
 void NinecraftApp::init(void){
+	PatchManager::instance().setDataPath(this->dataPathMaybe);
+	PatchManager::instance().initializeOnStartup();
 	const char* v43[] = {"/games", "/com.mojang", "/minecraftpe"};
 	createTree(this->dataPathMaybe.c_str(), v43, 3);
 	this->field_D00 = this->dataPathMaybe + "/games" + "/com.mojang" + "/minecraftpe";
