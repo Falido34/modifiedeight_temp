@@ -30,8 +30,6 @@ add_compile_options(
     -Werror=infinite-recursion
     -Werror=return-type
     -DDIFFERENTTWEAKS
-    -DMCPE_BASE_SOURCE_ROOT="${CMAKE_SOURCE_DIR}"
-    -DMCPE_BASE_BUILD_ROOT="${CMAKE_BINARY_DIR}"
 )
 
 if(ANDROID)
@@ -130,7 +128,30 @@ elseif(MCPE_IOS)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/build"
     )
 else()
-    add_executable(modifiedeight ${IMPLCPP} ${IMPLC} ${IMPLASM} ${HEADC} ${HEADCPP})
+    set(EMBEDDED_PATCH_SRC_ASM "")
+    if(NOT MCPE_PATCHED_BUILD AND EXISTS "${CMAKE_SOURCE_DIR}/tools/embed_patch_source.py")
+        find_package(Python3 COMPONENTS Interpreter QUIET)
+        if(Python3_Interpreter_FOUND)
+            set(EMBED_SRC_BIN "${CMAKE_CURRENT_BINARY_DIR}/embedded_patch_src.zbin")
+            set(EMBED_SRC_ASM "${CMAKE_CURRENT_BINARY_DIR}/embedded_patch_src.S")
+            execute_process(
+                COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/embed_patch_source.py"
+                    --root "${CMAKE_SOURCE_DIR}"
+                    --client "modifiedeight"
+                    --out-bin "${EMBED_SRC_BIN}"
+                    --out-asm "${EMBED_SRC_ASM}"
+                RESULT_VARIABLE EMBED_SRC_RC
+            )
+            if(EMBED_SRC_RC EQUAL 0 AND EXISTS "${EMBED_SRC_ASM}")
+                set(EMBEDDED_PATCH_SRC_ASM "${EMBED_SRC_ASM}")
+                set_source_files_properties("${EMBED_SRC_ASM}" PROPERTIES GENERATED TRUE OBJECT_DEPENDS "${EMBED_SRC_BIN}")
+            endif()
+        endif()
+    endif()
+    add_executable(modifiedeight ${IMPLCPP} ${IMPLC} ${IMPLASM} ${HEADC} ${HEADCPP} ${EMBEDDED_PATCH_SRC_ASM})
+    if(EMBEDDED_PATCH_SRC_ASM)
+        target_compile_definitions(modifiedeight PRIVATE MCPE_HAS_EMBEDDED_SRC=1)
+    endif()
     target_include_directories(modifiedeight PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/headers"
         ${SDL_INCLUDE_DIR}
@@ -191,23 +212,37 @@ else()
     endif()
 
     set_target_properties(modifiedeight PROPERTIES
+        ENABLE_EXPORTS ON
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/build"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/build"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/build"
     )
 
-    if(EXISTS "${CMAKE_SOURCE_DIR}/platforms/android/app/src/classic/assets")
-        add_custom_command(TARGET modifiedeight POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${CMAKE_SOURCE_DIR}/platforms/android/app/src/classic/assets"
-                "${CMAKE_CURRENT_BINARY_DIR}/build/assets"
-        )
+    if(NOT DEFINED MCPE_BASE_SOURCE_ROOT OR MCPE_BASE_SOURCE_ROOT STREQUAL "")
+        set(MCPE_BASE_SOURCE_ROOT "${CMAKE_SOURCE_DIR}")
     endif()
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
-        add_custom_command(TARGET modifiedeight POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${CMAKE_CURRENT_SOURCE_DIR}/assets"
-                "${CMAKE_CURRENT_BINARY_DIR}/build/assets"
-        )
+    if(NOT DEFINED MCPE_BASE_BUILD_ROOT OR MCPE_BASE_BUILD_ROOT STREQUAL "")
+        set(MCPE_BASE_BUILD_ROOT "${CMAKE_BINARY_DIR}")
+    endif()
+    target_compile_definitions(modifiedeight PRIVATE
+        MCPE_BASE_SOURCE_ROOT="${MCPE_BASE_SOURCE_ROOT}"
+        MCPE_BASE_BUILD_ROOT="${MCPE_BASE_BUILD_ROOT}"
+    )
+
+    if(NOT MCPE_PATCHED_BUILD)
+        if(EXISTS "${CMAKE_SOURCE_DIR}/platforms/android/app/src/classic/assets")
+            add_custom_command(TARGET modifiedeight POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${CMAKE_SOURCE_DIR}/platforms/android/app/src/classic/assets"
+                    "${CMAKE_CURRENT_BINARY_DIR}/build/assets"
+            )
+        endif()
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+            add_custom_command(TARGET modifiedeight POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+                    "${CMAKE_CURRENT_BINARY_DIR}/build/assets"
+            )
+        endif()
     endif()
 endif()

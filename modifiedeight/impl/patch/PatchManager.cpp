@@ -35,6 +35,14 @@
 #include <unistd.h>
 #endif
 
+#ifdef MCPE_HAS_EMBEDDED_SRC
+#include <zlib.h>
+extern "C" {
+extern const uint8_t m8_embedded_src_start[];
+extern const uint8_t m8_embedded_src_end[];
+}
+#endif
+
 #ifndef MCPE_BASE_SOURCE_ROOT
 #define MCPE_BASE_SOURCE_ROOT ""
 #endif
@@ -133,6 +141,37 @@ std::string parentDir(const std::string& p) {
 	if (pos == std::string::npos) return "";
 	if (pos == 0) return "/";
 	return clean.substr(0, pos);
+}
+
+bool isAbsolutePath(const std::string& p) {
+	if (p.empty()) return false;
+	if (p[0] == '/') return true;
+	if (p.size() >= 2 && p[1] == ':') return true;
+	return false;
+}
+
+std::string makeAbsolutePath(const std::string& p) {
+	std::string clean = normalizeSlashes(p);
+	if (clean.empty() || isAbsolutePath(clean)) return clean;
+	char cwdBuf[2048];
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+	if (_getcwd(cwdBuf, sizeof(cwdBuf))) {
+		return normalizeSlashes(std::string(cwdBuf) + "/" + clean);
+	}
+#else
+	if (getcwd(cwdBuf, sizeof(cwdBuf))) {
+		return normalizeSlashes(std::string(cwdBuf) + "/" + clean);
+	}
+#endif
+	return clean;
+}
+
+uint16_t readLE16(const uint8_t* p) {
+	return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+}
+
+uint32_t readLE32(const uint8_t* p) {
+	return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
 std::string shellQuote(const std::string& s) {
@@ -509,22 +548,22 @@ std::string PatchManager::getPatchesDir() {
 	std::string exe = this->getExecutablePath();
 	size_t cbPos = exe.find("/.build/cmake_build/");
 	if (cbPos != std::string::npos) {
-		std::string pdir = exe.substr(0, cbPos);
+		std::string pdir = makeAbsolutePath(exe.substr(0, cbPos));
 		ensureDirRecursiveImpl(pdir);
 		return pdir;
 	}
 	if (!this->baseBinaryArg_.empty()) {
-		std::string bdir = parentDir(this->baseBinaryArg_);
+		std::string bdir = parentDir(makeAbsolutePath(this->baseBinaryArg_));
 		if (!bdir.empty() && isDirectory(bdir + "/patches")) {
 			return bdir + "/patches";
 		}
 	}
-	std::string exeDir = parentDir(exe);
+	std::string exeDir = parentDir(makeAbsolutePath(exe));
 	if (!exeDir.empty() && isDirectory(exeDir + "/patches")) {
 		return exeDir + "/patches";
 	}
 	if (isDirectory("patches")) {
-		return "patches";
+		return makeAbsolutePath("patches");
 	}
 	if (!exeDir.empty() && (isDirectory(exeDir + "/skin_cache") || isDirectory(exeDir + "/capes") || isDirectory(exeDir + "/assets"))) {
 		std::string dir = exeDir + "/patches";
@@ -532,8 +571,9 @@ std::string PatchManager::getPatchesDir() {
 		return dir;
 	}
 	if (isDirectory("skin_cache") || isDirectory("capes") || isDirectory("texture_packs") || isDirectory("assets")) {
-		ensureDirRecursiveImpl("patches");
-		return "patches";
+		std::string dir = makeAbsolutePath("patches");
+		ensureDirRecursiveImpl(dir);
+		return dir;
 	}
 #if defined(ANDROID) || defined(MCPE_IOS)
 	if (!this->dataPath_.empty()) {
@@ -542,13 +582,27 @@ std::string PatchManager::getPatchesDir() {
 		return dir;
 	}
 #endif
-	ensureDirRecursiveImpl("patches");
-	return "patches";
+	std::string dir = makeAbsolutePath("patches");
+	ensureDirRecursiveImpl(dir);
+	return dir;
 }
 
 std::string PatchManager::getBaseBinaryPath() {
 	if (!this->baseBinaryArg_.empty() && isRegularFile(this->baseBinaryArg_)) {
-		return this->baseBinaryArg_;
+		return makeAbsolutePath(this->baseBinaryArg_);
+	}
+	if (!this->isPatchedBinary()) {
+		std::string self = this->getExecutablePath();
+		if (!self.empty() && isRegularFile(self)) return makeAbsolutePath(self);
+	}
+	std::string pdirParent = parentDir(this->getPatchesDir());
+	if (!pdirParent.empty()) {
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+		std::string beside = pdirParent + "/modifiedeight.exe";
+#else
+		std::string beside = pdirParent + "/modifiedeight";
+#endif
+		if (isRegularFile(beside)) return beside;
 	}
 	std::string buildRoot = this->findBaseBuildRoot();
 	if (!buildRoot.empty()) {
@@ -558,10 +612,6 @@ std::string PatchManager::getBaseBinaryPath() {
 		std::string cand = buildRoot + "/modifiedeight/build/modifiedeight";
 #endif
 		if (isRegularFile(cand)) return cand;
-	}
-	if (!this->isPatchedBinary()) {
-		std::string self = this->getExecutablePath();
-		if (!self.empty() && isRegularFile(self)) return self;
 	}
 	return "modifiedeight";
 }
@@ -574,36 +624,323 @@ bool PatchManager::isPatchedBinary() const {
 }
 
 std::string PatchManager::getActiveCodeFingerprint() const {
-	if (!this->isPatchedBinary()) return "";
-	return MCPE_ACTIVE_CODE_FINGERPRINT;
+	if (this->isPatchedBinary()) {
+		return MCPE_ACTIVE_CODE_FINGERPRINT;
+	}
+	std::lock_guard<std::mutex> lock(this->mutex_);
+	return this->activeDynamicPluginFp_;
 }
 
 std::string PatchManager::findBaseSourceRoot() const {
+	auto isValidRoot = [](const std::string& s) {
+		return !s.empty() && isRegularFile(s + "/CMakeLists.txt") && isRegularFile(s + "/modifiedeight/CMakeLists.txt");
+	};
+	const char* envRoot = getenv("M8_SOURCE_ROOT");
+	if (envRoot && envRoot[0]) {
+		std::string s = makeAbsolutePath(envRoot);
+		if (isValidRoot(s)) return s;
+	}
 	if (strlen(MCPE_BASE_SOURCE_ROOT) > 0) {
-		std::string s = normalizeSlashes(MCPE_BASE_SOURCE_ROOT);
-		if (isRegularFile(s + "/CMakeLists.txt") && isRegularFile(s + "/modifiedeight/CMakeLists.txt")) {
-			return s;
-		}
+		std::string s = makeAbsolutePath(MCPE_BASE_SOURCE_ROOT);
+		if (isValidRoot(s)) return s;
 	}
 	std::vector<std::string> starts;
 	char cwdBuf[2048];
+#if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
+	if (_getcwd(cwdBuf, sizeof(cwdBuf))) {
+		starts.push_back(normalizeSlashes(cwdBuf));
+	}
+#else
 	if (getcwd(cwdBuf, sizeof(cwdBuf))) {
 		starts.push_back(normalizeSlashes(cwdBuf));
 	}
-	std::string exeDir = parentDir(this->getExecutablePath());
+#endif
+	std::string exePath = makeAbsolutePath(this->getExecutablePath());
+	std::string exeDir = parentDir(exePath);
 	if (!exeDir.empty()) starts.push_back(exeDir);
+	if (!this->baseBinaryArg_.empty()) {
+		std::string bdir = parentDir(makeAbsolutePath(this->baseBinaryArg_));
+		if (!bdir.empty()) starts.push_back(bdir);
+	}
 
 	for (std::string cur : starts) {
 		for (int depth = 0; depth < 6 && !cur.empty(); ++depth) {
-			if (isRegularFile(cur + "/CMakeLists.txt") && isRegularFile(cur + "/modifiedeight/CMakeLists.txt")) {
-				return cur;
-			}
+			if (isValidRoot(cur)) return cur;
 			std::string p = parentDir(cur);
 			if (p == cur) break;
 			cur = p;
 		}
 	}
+
+#ifndef MCPE_HAS_EMBEDDED_SRC
+	size_t cbPos = exePath.find("/.build/cmake_build/");
+	if (cbPos != std::string::npos) {
+		std::string cand = exePath.substr(0, cbPos) + "/.build/embedded_src";
+		if (isValidRoot(cand)) return cand;
+	}
+	for (const std::string& st : starts) {
+		std::string cand = st + "/patches/.build/embedded_src";
+		if (isValidRoot(cand)) return cand;
+	}
+#endif
 	return "";
+}
+
+std::string PatchManager::extractEmbeddedSourceRoot(std::string& outErr) {
+#ifdef MCPE_HAS_EMBEDDED_SRC
+	const uint8_t* start = m8_embedded_src_start;
+	const uint8_t* end = m8_embedded_src_end;
+	if (!start || !end || end <= start || (size_t)(end - start) < 12) {
+		outErr = "Embedded client source bundle is missing or corrupted.";
+		return "";
+	}
+	size_t blobLen = (size_t)(end - start);
+	if (memcmp(start, "M8SB", 4) != 0) {
+		outErr = "Embedded client source bundle has invalid magic header.";
+		return "";
+	}
+	uint32_t rawLen = readLE32(start + 4);
+	uint32_t fileCount = readLE32(start + 8);
+
+	std::string pdir = makeAbsolutePath(this->getPatchesDir());
+	std::string outRoot = pdir + "/.build/embedded_src";
+	std::string stampPath = outRoot + "/.bundle_stamp";
+
+	uint64_t h1 = fnv1a64(start, blobLen, 14695981039346656037ULL);
+	uint64_t h2 = fnv1a64(start, blobLen, 1099511628211ULL);
+	char stampBuf[64];
+	snprintf(stampBuf, sizeof(stampBuf), "%016llx%016llx:%u:%u",
+	         (unsigned long long)h1, (unsigned long long)h2, (unsigned)rawLen, (unsigned)fileCount);
+	std::string expectedStamp(stampBuf);
+
+	if (isRegularFile(outRoot + "/CMakeLists.txt") &&
+	    isRegularFile(outRoot + "/modifiedeight/CMakeLists.txt")) {
+		std::ifstream sf(stampPath.c_str());
+		std::string curStamp;
+		if (sf.is_open() && std::getline(sf, curStamp) && trimCopy(curStamp) == expectedStamp) {
+			return outRoot;
+		}
+	}
+
+	{
+		std::lock_guard<std::mutex> lk(this->mutex_);
+		this->buildStatus_ = "Extracting embedded client sources...";
+	}
+
+	std::vector<uint8_t> raw(rawLen);
+	uLongf destLen = (uLongf)rawLen;
+	int zrc = uncompress(raw.data(), &destLen, start + 12, (uLong)(blobLen - 12));
+	if (zrc != Z_OK || destLen != rawLen) {
+		outErr = "Failed to decompress embedded client sources (zlib error " + std::to_string(zrc) + ").";
+		return "";
+	}
+
+	removePathRecursive(outRoot);
+	ensureDirRecursiveImpl(outRoot);
+
+	size_t pos = 0;
+	for (uint32_t i = 0; i < fileCount; ++i) {
+		if (pos + 2 > raw.size()) {
+			outErr = "Truncated embedded source bundle (path length).";
+			return "";
+		}
+		uint16_t pathLen = readLE16(raw.data() + pos);
+		pos += 2;
+		if (pos + pathLen + 4 > raw.size()) {
+			outErr = "Truncated embedded source bundle (entry header).";
+			return "";
+		}
+		std::string rel((const char*)(raw.data() + pos), pathLen);
+		pos += pathLen;
+		uint32_t dataLen = readLE32(raw.data() + pos);
+		pos += 4;
+		if (pos + dataLen > raw.size()) {
+			outErr = "Truncated embedded source bundle (file payload).";
+			return "";
+		}
+		if (rel.empty() || rel[0] == '/' || rel == ".." || startsWithStr(rel, "../") ||
+		    rel.find("/../") != std::string::npos || endsWithStr(rel, "/..")) {
+			outErr = "Unsafe relative path in embedded source bundle: " + rel;
+			return "";
+		}
+		std::string dst = outRoot + "/" + rel;
+		if (!writeFileIfDifferent(dst, raw.data() + pos, dataLen)) {
+			outErr = "Failed to extract embedded source file '" + dst + "': " + strerror(errno);
+			return "";
+		}
+		pos += dataLen;
+	}
+
+	if (!writeFileIfDifferent(stampPath, (const uint8_t*)expectedStamp.data(), expectedStamp.size())) {
+		outErr = "Failed to write embedded source stamp.";
+		return "";
+	}
+	return outRoot;
+#else
+	(void)outErr;
+	return "";
+#endif
+}
+
+bool PatchManager::areEnabledCodePatchesPureAdditive(const std::string& baseSourceRoot) const {
+	std::lock_guard<std::mutex> lock(this->mutex_);
+	bool hasAnyCodePatch = false;
+	bool hasAnyCpp = false;
+	for (const auto& p : this->patches_) {
+		if (!p.enabled || !p.hasCode) continue;
+		hasAnyCodePatch = true;
+		for (const std::string& rel : p.files) {
+			if (!isCodeFileRel(rel)) continue;
+			if (rel == "CMakeLists.txt") return false;
+			std::string ext = getExtensionLower(rel);
+			if (ext == ".s" || ext == ".c") return false;
+			if (isRegularFile(baseSourceRoot + "/modifiedeight/" + rel)) {
+				return false;
+			}
+			if (ext == ".cpp" || ext == ".cc" || ext == ".cxx") {
+				hasAnyCpp = true;
+			}
+		}
+	}
+	return hasAnyCodePatch && hasAnyCpp;
+}
+
+bool PatchManager::buildAdditiveDynamicPlugin(const std::string& baseSourceRoot, const std::string& wantedFp, std::string& outPluginPath, std::string& outErr) {
+#if !defined(_WIN32) && !defined(__WIN32__) && !defined(WIN32) && !defined(ANDROID) && !defined(MCPE_IOS) && !defined(__APPLE__)
+	std::string cxx;
+	const char* compilers[] = {"c++", "g++", "clang++"};
+	for (int i = 0; i < 3; ++i) {
+		std::string probe = std::string("command -v ") + compilers[i] + " >/dev/null 2>&1";
+		if (system(probe.c_str()) == 0) {
+			cxx = compilers[i];
+			break;
+		}
+	}
+	if (cxx.empty()) {
+		outErr = "No C++ compiler (c++, g++, or clang++) found in PATH to compile code patches.";
+		return false;
+	}
+
+	std::vector<PatchEntry> enabledCodePatches;
+	{
+		std::lock_guard<std::mutex> lk(this->mutex_);
+		for (const auto& p : this->patches_) {
+			if (p.enabled && p.hasCode) enabledCodePatches.push_back(p);
+		}
+	}
+	std::map<std::string, std::string> relToSrc;
+	std::ostringstream namesSS;
+	for (size_t i = 0; i < enabledCodePatches.size(); ++i) {
+		if (i > 0) namesSS << ", ";
+		namesSS << enabledCodePatches[i].displayName;
+	}
+	for (auto it = enabledCodePatches.rbegin(); it != enabledCodePatches.rend(); ++it) {
+		for (const std::string& rel : it->files) {
+			std::string ext = getExtensionLower(rel);
+			if (ext == ".cpp" || ext == ".cc" || ext == ".cxx") {
+				relToSrc[rel] = it->rootDir + "/" + rel;
+			}
+		}
+	}
+	if (relToSrc.empty()) {
+		outErr = "No C++ source files found in enabled code patches.";
+		return false;
+	}
+
+	std::string pdir = makeAbsolutePath(this->getPatchesDir());
+	std::string pluginsDir = pdir + "/.build/plugins";
+	ensureDirRecursiveImpl(pluginsDir);
+	outPluginPath = pluginsDir + "/m8_patches_" + wantedFp + ".so";
+	std::string tmpPath = outPluginPath + ".tmp";
+
+	{
+		std::lock_guard<std::mutex> lk(this->mutex_);
+		this->buildStatus_ = "Compiling patch plugin (" + namesSS.str() + ")...";
+	}
+
+	std::ostringstream cmd;
+	cmd << cxx
+	    << " -shared -fPIC -O2 -std=gnu++11"
+	    << " -fpermissive -Wno-out-of-line-declaration -Wno-write-strings"
+	    << " -DDIFFERENTTWEAKS -DIMTOOLAZYTOFIX16ERRS -DPCTWEAKS"
+	    << " -I" << shellQuote(baseSourceRoot + "/modifiedeight/headers")
+	    << " -I" << shellQuote(baseSourceRoot + "/stb")
+	    << " -I" << shellQuote(baseSourceRoot + "/glm")
+	    << " -I" << shellQuote(baseSourceRoot + "/OpenAES/inc")
+	    << " -I" << shellQuote(baseSourceRoot + "/RakNet/Source")
+	    << " -I" << shellQuote(baseSourceRoot + "/jsoncpp/jsoncpp/include")
+	    << " -I" << shellQuote(baseSourceRoot + "/jsoncpp/jsoncpp/src/lib_json")
+	    << " -I" << shellQuote(baseSourceRoot + "/utf8proc");
+	if (isDirectory("/usr/include/SDL")) {
+		cmd << " -I/usr/include/SDL";
+	} else if (isDirectory("/run/host/usr/include/SDL")) {
+		cmd << " -I/run/host/usr/include/SDL";
+	}
+	for (const auto& p : enabledCodePatches) {
+		if (isDirectory(p.rootDir + "/headers")) {
+			cmd << " -I" << shellQuote(p.rootDir + "/headers");
+		}
+		cmd << " -I" << shellQuote(p.rootDir);
+	}
+	for (const auto& kv : relToSrc) {
+		cmd << " " << shellQuote(kv.second);
+	}
+	cmd << " -o " << shellQuote(tmpPath) << " 2>&1";
+
+	std::string log;
+	int code = 0;
+	runCommandCapture(cmd.str(), log, code, &this->mutex_, &this->buildStatus_);
+	if (code != 0 || !isRegularFile(tmpPath)) {
+		remove(tmpPath.c_str());
+		outErr = "Failed to compile patch(es): " + namesSS.str() + "\n\n" + PatchManager::stripAnsiCodes(trimCopy(log));
+		return false;
+	}
+	remove(outPluginPath.c_str());
+	if (::rename(tmpPath.c_str(), outPluginPath.c_str()) != 0) {
+		remove(tmpPath.c_str());
+		outErr = std::string("Failed to finalize compiled patch plugin: ") + strerror(errno);
+		return false;
+	}
+	return true;
+#else
+	(void)baseSourceRoot;
+	(void)wantedFp;
+	(void)outPluginPath;
+	outErr = "Dynamic patch plugins are not supported on this platform.";
+	return false;
+#endif
+}
+
+bool PatchManager::loadDynamicPatchPlugin(const std::string& pluginPath, const std::string& fp, std::string& outErr) {
+#if !defined(_WIN32) && !defined(__WIN32__) && !defined(WIN32) && !defined(ANDROID) && !defined(MCPE_IOS) && !defined(__APPLE__)
+	dlerror();
+	void* handle = dlopen(pluginPath.c_str(), RTLD_NOW | RTLD_GLOBAL);
+	if (!handle) {
+		const char* err = dlerror();
+		outErr = "Failed to load compiled patch plugin '" + pluginPath + "':\n" + (err ? err : "unknown dlopen error");
+		return false;
+	}
+	typedef const char* (*PatchInitFn)();
+	PatchInitFn initFn = (PatchInitFn)dlsym(handle, "mcpe_patch_init");
+	if (!initFn) initFn = (PatchInitFn)dlsym(handle, "patch_init");
+	if (initFn) {
+		const char* errStr = initFn();
+		if (errStr && errStr[0]) {
+			outErr = "Compiled patch plugin returned error:\n" + std::string(errStr);
+			return false;
+		}
+	}
+	{
+		std::lock_guard<std::mutex> lock(this->mutex_);
+		this->activeDynamicPluginFp_ = fp;
+	}
+	return true;
+#else
+	(void)pluginPath;
+	(void)fp;
+	outErr = "Dynamic patch plugins are not supported on this platform.";
+	return false;
+#endif
 }
 
 std::string PatchManager::findBaseBuildRoot() const {
@@ -1119,6 +1456,22 @@ bool PatchManager::initializeOnStartup() {
 		this->reportError(err);
 		return false;
 	}
+#if !defined(_WIN32) && !defined(__WIN32__) && !defined(WIN32) && !defined(ANDROID) && !defined(MCPE_IOS) && !defined(__APPLE__)
+	if (!this->isPatchedBinary()) {
+		std::string wantedFp = this->computeWantedCodeFingerprint();
+		if (!wantedFp.empty() && this->getActiveCodeFingerprint() != wantedFp) {
+			std::string pdir = this->getPatchesDir();
+			std::string dynSo = pdir + "/.build/plugins/m8_patches_" + wantedFp + ".so";
+			if (isRegularFile(dynSo)) {
+				if (!this->loadDynamicPatchPlugin(dynSo, wantedFp, err)) {
+					remove(dynSo.c_str());
+					this->reportError(err);
+					return false;
+				}
+			}
+		}
+	}
+#endif
 	return true;
 }
 
@@ -1133,6 +1486,12 @@ bool PatchManager::maybeRelaunchIntoPatchedOnBoot() {
 	if (this->getActiveCodeFingerprint() == wantedFp) return false;
 
 	std::string pdir = this->getPatchesDir();
+#if !defined(_WIN32) && !defined(__WIN32__) && !defined(WIN32) && !defined(__APPLE__)
+	std::string dynSo = pdir + "/.build/plugins/m8_patches_" + wantedFp + ".so";
+	if (!this->isPatchedBinary() && isRegularFile(dynSo)) {
+		return false;
+	}
+#endif
 	std::string stampFile = pdir + "/.build/built_fingerprint.txt";
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 	std::string patchedExe = pdir + "/.build/cmake_build/modifiedeight/build/modifiedeight.exe";
@@ -1331,6 +1690,8 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 		this->asyncWillRelaunch_ = false;
 		this->asyncError_.clear();
 		this->pendingRelaunchExe_.clear();
+		this->pendingDynamicPluginPath_.clear();
+		this->pendingDynamicPluginFp_.clear();
 		this->buildStatus_ = "Validating enabled patches...";
 	}
 	this->buildRunning_ = true;
@@ -1357,7 +1718,7 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 		std::string wantedFp = this->computeWantedCodeFingerprint();
 		std::string activeFp = this->getActiveCodeFingerprint();
 
-		if (wantedFp.empty() && (this->isPatchedBinary() || !this->loadedNativeLibs_.empty())) {
+		if (wantedFp.empty() && (this->isPatchedBinary() || !activeFp.empty() || !this->loadedNativeLibs_.empty())) {
 #if defined(ANDROID) || defined(MCPE_IOS)
 			finishFail("Disabling native/code patches on this platform requires restarting the app.");
 			return;
@@ -1393,12 +1754,62 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 #else
 		std::string baseSourceRoot = this->findBaseSourceRoot();
 		if (baseSourceRoot.empty()) {
-			finishFail("Unable to locate client source root (modifiedeight/CMakeLists.txt) to compile code patches.");
-			return;
+			std::string extractErr;
+			baseSourceRoot = this->extractEmbeddedSourceRoot(extractErr);
+			if (baseSourceRoot.empty()) {
+				std::string msg = "Unable to locate client source root (modifiedeight/CMakeLists.txt) to compile code patches.";
+				if (!extractErr.empty()) msg += "\n" + extractErr;
+				finishFail(msg);
+				return;
+			}
 		}
 		std::string baseBuildRoot = this->findBaseBuildRoot();
-		std::string pdir = this->getPatchesDir();
+		std::string pdir = makeAbsolutePath(this->getPatchesDir());
 		std::string buildBase = pdir + "/.build";
+
+#if !defined(_WIN32) && !defined(__WIN32__) && !defined(WIN32) && !defined(__APPLE__)
+		if (this->areEnabledCodePatchesPureAdditive(baseSourceRoot)) {
+			std::string pluginPath = buildBase + "/plugins/m8_patches_" + wantedFp + ".so";
+			bool havePlugin = isRegularFile(pluginPath);
+			std::string pluginErr;
+			if (!havePlugin) {
+				havePlugin = this->buildAdditiveDynamicPlugin(baseSourceRoot, wantedFp, pluginPath, pluginErr);
+			}
+			if (havePlugin) {
+				bool canHotLoad = false;
+				{
+					std::lock_guard<std::mutex> lk(this->mutex_);
+					canHotLoad = !this->isPatchedBinary() && this->activeDynamicPluginFp_.empty() && this->loadedNativeLibs_.empty();
+				}
+				if (canHotLoad) {
+					this->saveEnabledConfig();
+					std::lock_guard<std::mutex> lk(this->mutex_);
+					this->pendingDynamicPluginPath_ = pluginPath;
+					this->pendingDynamicPluginFp_ = wantedFp;
+					this->asyncSuccess_ = true;
+					this->asyncWillRelaunch_ = false;
+					this->asyncDone_ = true;
+					this->buildRunning_ = false;
+					return;
+				}
+				std::string baseExe = this->getBaseBinaryPath();
+				if (!baseExe.empty() && isRegularFile(baseExe)) {
+					this->saveEnabledConfig();
+					std::lock_guard<std::mutex> lk(this->mutex_);
+					this->pendingRelaunchExe_ = baseExe;
+					this->asyncSuccess_ = true;
+					this->asyncWillRelaunch_ = true;
+					this->asyncDone_ = true;
+					this->buildRunning_ = false;
+					return;
+				}
+			} else if (system("command -v cmake >/dev/null 2>&1") != 0) {
+				finishFail(pluginErr);
+				return;
+			}
+		}
+#endif
+
 		std::string wsRoot = buildBase + "/workspace";
 		std::string wsClient = wsRoot + "/modifiedeight";
 		std::string cmakeBuildDir = buildBase + "/cmake_build";
@@ -1470,9 +1881,25 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 #endif
 		}
 		{
-			std::string srcAssets = baseSourceRoot + "/modifiedeight/assets";
+			std::string srcAssets;
+			std::vector<std::string> assetCands;
+			assetCands.push_back(baseSourceRoot + "/modifiedeight/assets");
+			std::string baseBinDir = parentDir(this->getBaseBinaryPath());
+			if (!baseBinDir.empty()) assetCands.push_back(baseBinDir + "/assets");
+			std::string pdirParent = parentDir(pdir);
+			if (!pdirParent.empty()) assetCands.push_back(pdirParent + "/assets");
+			std::string selfDir = parentDir(this->getExecutablePath());
+			if (!selfDir.empty()) assetCands.push_back(selfDir + "/assets");
+			assetCands.push_back(makeAbsolutePath("assets"));
+			for (const std::string& cand : assetCands) {
+				std::string absCand = makeAbsolutePath(cand);
+				if (!absCand.empty() && isDirectory(absCand)) {
+					srcAssets = absCand;
+					break;
+				}
+			}
 			std::string dstAssets = wsClient + "/assets";
-			if (pathExists(srcAssets)) {
+			if (!srcAssets.empty() && pathExists(srcAssets)) {
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 				if (!pathExists(dstAssets)) {
 					std::string cmd = "mklink /J " + shellQuote(dstAssets) + " " + shellQuote(srcAssets) + " >nul 2>&1 || xcopy /E /I /Q /Y " + shellQuote(srcAssets) + " " + shellQuote(dstAssets) + " >nul";
@@ -1584,6 +2011,7 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 			cfgCmd << "cmake -S " << shellQuote(wsRoot)
 			       << " -B " << shellQuote(cmakeBuildDir)
 			       << " -DCMAKE_BUILD_TYPE=Release"
+			       << " -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 			       << " -DM8_PATCHED_ONLY=ON"
 			       << " -DMCPE_PATCHED_BUILD=1"
 			       << " -DMCPE_BASE_SOURCE_ROOT=" << shellQuote(baseSourceRoot);
@@ -1664,11 +2092,32 @@ std::string PatchManager::getBuildStatus() const {
 
 bool PatchManager::pollAsyncResult(bool& outSuccess, bool& outWillRelaunch, std::string& outError) {
 	if (!this->asyncDone_.load()) return false;
-	std::lock_guard<std::mutex> lock(this->mutex_);
-	outSuccess = this->asyncSuccess_;
-	outWillRelaunch = this->asyncWillRelaunch_;
-	outError = this->asyncError_;
-	this->asyncDone_ = false;
+	std::string dynPath;
+	std::string dynFp;
+	std::vector<std::string> rollbackIds;
+	{
+		std::lock_guard<std::mutex> lock(this->mutex_);
+		outSuccess = this->asyncSuccess_;
+		outWillRelaunch = this->asyncWillRelaunch_;
+		outError = this->asyncError_;
+		dynPath = this->pendingDynamicPluginPath_;
+		dynFp = this->pendingDynamicPluginFp_;
+		rollbackIds = this->pendingRollbackIds_;
+		this->pendingDynamicPluginPath_.clear();
+		this->pendingDynamicPluginFp_.clear();
+		this->asyncDone_ = false;
+	}
+	if (outSuccess && !outWillRelaunch && !dynPath.empty()) {
+		std::string loadErr;
+		if (!this->loadDynamicPatchPlugin(dynPath, dynFp, loadErr)) {
+			remove(dynPath.c_str());
+			this->restoreEnabledIds(rollbackIds);
+			this->saveEnabledConfig();
+			this->reportError(loadErr);
+			outSuccess = false;
+			outError = loadErr;
+		}
+	}
 	return true;
 }
 

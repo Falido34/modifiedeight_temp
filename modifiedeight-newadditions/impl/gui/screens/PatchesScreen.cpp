@@ -552,6 +552,9 @@ void PatchesScreen::tick() {
 			}
 			return;
 		}
+		if (pm.hasEnabledAssetOverrides()) {
+			pm.applyRuntimeAssetReload((NinecraftApp*)this->minecraft);
+		}
 		this->rebuildPatchRows();
 	}
 	Screen::tick();

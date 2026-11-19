@@ -305,6 +305,19 @@ void OptionsScreen::tick() {
 			}
 			return;
 		}
+		if (pm.hasEnabledAssetOverrides()) {
+			pm.applyRuntimeAssetReload((NinecraftApp*)this->minecraft);
+		}
+		int selectedIdx = OptionsScreen::lastCategory;
+		for (int i = 0; i < (int)this->optionPanes.size(); ++i) {
+			if (this->optionPanes[i] == this->selectedCategory) {
+				selectedIdx = i;
+				break;
+			}
+		}
+		this->generateOptionScreens();
+		this->setupPositions();
+		this->selectCategory(selectedIdx);
 	}
 
 	static int lastNewAdditions = this->minecraft->options.newAdditions;

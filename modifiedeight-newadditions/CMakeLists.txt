@@ -131,7 +131,30 @@ elseif(MCPE_IOS)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/build"
     )
 else()
-    add_executable(modifiedeight-newadditions ${IMPLCPP} ${IMPLC} ${IMPLASM} ${HEADC} ${HEADCPP})
+    set(EMBEDDED_PATCH_SRC_ASM "")
+    if(NOT MCPE_PATCHED_BUILD AND EXISTS "${CMAKE_SOURCE_DIR}/tools/embed_patch_source.py")
+        find_package(Python3 COMPONENTS Interpreter QUIET)
+        if(Python3_Interpreter_FOUND)
+            set(EMBED_SRC_BIN "${CMAKE_CURRENT_BINARY_DIR}/embedded_patch_src.zbin")
+            set(EMBED_SRC_ASM "${CMAKE_CURRENT_BINARY_DIR}/embedded_patch_src.S")
+            execute_process(
+                COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/embed_patch_source.py"
+                    --root "${CMAKE_SOURCE_DIR}"
+                    --client "modifiedeight-newadditions"
+                    --out-bin "${EMBED_SRC_BIN}"
+                    --out-asm "${EMBED_SRC_ASM}"
+                RESULT_VARIABLE EMBED_SRC_RC
+            )
+            if(EMBED_SRC_RC EQUAL 0 AND EXISTS "${EMBED_SRC_ASM}")
+                set(EMBEDDED_PATCH_SRC_ASM "${EMBED_SRC_ASM}")
+                set_source_files_properties("${EMBED_SRC_ASM}" PROPERTIES GENERATED TRUE OBJECT_DEPENDS "${EMBED_SRC_BIN}")
+            endif()
+        endif()
+    endif()
+    add_executable(modifiedeight-newadditions ${IMPLCPP} ${IMPLC} ${IMPLASM} ${HEADC} ${HEADCPP} ${EMBEDDED_PATCH_SRC_ASM})
+    if(EMBEDDED_PATCH_SRC_ASM)
+        target_compile_definitions(modifiedeight-newadditions PRIVATE MCPE_HAS_EMBEDDED_SRC=1)
+    endif()
     target_include_directories(modifiedeight-newadditions PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/headers"
         ${SDL_INCLUDE_DIR}

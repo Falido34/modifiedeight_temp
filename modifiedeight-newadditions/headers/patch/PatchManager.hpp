@@ -97,12 +97,19 @@ private:
 
 	void ensureDirRecursive(const std::string& dir);
 	std::string findBaseSourceRoot() const;
+	std::string extractEmbeddedSourceRoot(std::string& outErr);
 	std::string findBaseBuildRoot() const;
 	std::string getExecutablePath() const;
 	bool loadNativeLibrariesForActivePatches(std::string& outErr);
+	bool areEnabledCodePatchesPureAdditive(const std::string& baseSourceRoot) const;
+	bool buildAdditiveDynamicPlugin(const std::string& baseSourceRoot, const std::string& wantedFp, std::string& outPluginPath, std::string& outErr);
+	bool loadDynamicPatchPlugin(const std::string& pluginPath, const std::string& fp, std::string& outErr);
 
 	std::vector<PatchEntry> patches_;
 	std::vector<std::string> loadedNativeLibs_;
+	std::string activeDynamicPluginFp_;
+	std::string pendingDynamicPluginPath_;
+	std::string pendingDynamicPluginFp_;
 	std::string dataPath_;
 	std::string exePath_;
 	std::string baseBinaryArg_;
