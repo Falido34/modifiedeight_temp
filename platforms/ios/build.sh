@@ -172,13 +172,24 @@ fi
 # ---- cmake build per target -------------------------------------------------
 if [ -z "$DEBUG" ]; then build=Release; else build=Debug; fi
 
+srcroot="$(CDPATH= cd -- "$platformdir/../.." && pwd)"
+
 built=
 for target in $NBC_TARGETS; do
     printf '\nBuilding for %s\n\n' "$target"
     export NBC_TARGET="$target"
-    mkdir -p "build-$NBC_CLIENT-$target"
-    cd "build-$NBC_CLIENT-$target"
-    cmake "$platformdir/../.." \
+    builddir="$workdir/build-$NBC_CLIENT-$target"
+    if [ -f "$builddir/CMakeCache.txt" ]; then
+        cached_dir="$(sed -n 's/^CMAKE_CACHEFILE_DIR:INTERNAL=//p' "$builddir/CMakeCache.txt" | head -n 1)"
+        cached_src="$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=//p' "$builddir/CMakeCache.txt" | head -n 1)"
+        if [ "$cached_dir" != "$builddir" ] || [ "$cached_src" != "$srcroot" ]; then
+            printf 'Cleaning stale CMake cache in %s\n' "$builddir"
+            rm -rf "$builddir"
+        fi
+    fi
+    mkdir -p "$builddir"
+    cd "$builddir"
+    cmake "$srcroot" \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_BUILD_TYPE="$build" \
         -DCMAKE_SYSTEM_NAME=Darwin \

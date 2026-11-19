@@ -31,6 +31,7 @@
 #else
 #include <dirent.h>
 #include <dlfcn.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #endif
 

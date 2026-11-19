@@ -170,10 +170,11 @@ jobs:
         with:
           path: |
             ~/.cache/ccache
-            platforms/ios/build/work
-          key: ios-build-${{ runner.os }}-${{ hashFiles('platforms/ios/build.sh') }}
+            platforms/ios/build/work/sdks
+            platforms/ios/build/work/toolchain
+          key: ios-sdk-toolchain-v2-${{ runner.os }}-${{ hashFiles('platforms/ios/build.sh') }}
           restore-keys: |
-            ios-build-${{ runner.os }}-
+            ios-sdk-toolchain-v2-${{ runner.os }}-
 
       - name: Build iOS IPAs
         working-directory: platforms/ios

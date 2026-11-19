@@ -73,7 +73,7 @@ if(ANDROID)
         "${CMAKE_CURRENT_SOURCE_DIR}/headers"
         "${ANDROID_NDK}/sources/android/native_app_glue"
     )
-    target_link_libraries(minecraftpe PRIVATE z EGL GLESv1_CM OpenSLES oaes_lib RakNetStatic native_app_glue jsoncpp_lib utf8proc log android)
+    target_link_libraries(minecraftpe PRIVATE z EGL GLESv1_CM OpenSLES oaes_lib RakNetStatic native_app_glue jsoncpp_lib utf8proc log android dl)
     set_target_properties(minecraftpe PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/build"
     )
