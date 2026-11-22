@@ -262,8 +262,9 @@ void OptionsScreen::render(int32_t a2, int32_t a3, float a4) {
 			this->drawCenteredString(this->font, status, this->width / 2, dy + 28, 0xFFE6E6E6);
 			int pct = (int)(s_dispProg * 100.0f + 0.5f);
 			if (pct > 100) pct = 100;
-			std::string pctStr = std::to_string(pct) + "%";
-			this->drawCenteredString(this->font, pctStr, this->width / 2, py + 2, 0xFFFFFFFF);
+			char pctBuf[16];
+			snprintf(pctBuf, sizeof(pctBuf), "%d%%", pct);
+			this->drawCenteredString(this->font, pctBuf, this->width / 2, py + 2, 0xFFFFFFFF);
 		}
 	}
 }

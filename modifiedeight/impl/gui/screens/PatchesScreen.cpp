@@ -62,7 +62,9 @@ static void renderStyledDialogBox(Screen* scr, Minecraft* mc, int dx, int dy, in
 		if (mc->font) {
 			int pct = (int)(s_dispProg * 100.0f + 0.5f);
 			if (pct > 100) pct = 100;
-			scr->drawCenteredString(mc->font, std::to_string(pct) + "%", dx + dw / 2, py + 2, 0xFFFFFFFF);
+			char pctBuf[16];
+			snprintf(pctBuf, sizeof(pctBuf), "%d%%", pct);
+			scr->drawCenteredString(mc->font, pctBuf, dx + dw / 2, py + 2, 0xFFFFFFFF);
 		}
 	}
 }
