@@ -791,6 +791,8 @@ LABEL_8:
 	}
 }
 void Minecraft::setLeaveGame(void) {
+	extern bool g_isNewAdditionsServer;
+	g_isNewAdditionsServer = false;
 	this->field_D22 = 1;
 }
 void Minecraft::setLevel(struct Level* level, const std::string& a3, struct LocalPlayer* a4) {

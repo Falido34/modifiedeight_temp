@@ -63,7 +63,7 @@ void ItemFrame::setItem(const ItemInstance& newItem) {
 void ItemFrame::removeFramedItem() {
 	ItemInstance disp = this->getDisplayedItem();
 	if (!disp.isNull() && disp.count > 0) {
-		if (this->dropChance > 0.0f) {
+		if (this->dropChance > 0.0f && this->level && !this->level->isClientMaybe) {
 			this->spawnAtLocation(disp, 0.0f);
 		}
 		this->item = ItemInstance();
@@ -78,7 +78,7 @@ void ItemFrame::removeFramedItem() {
 
 void ItemFrame::dropItem() {
 	this->removeFramedItem();
-	if (Item::itemFrame) {
+	if (Item::itemFrame && this->level && !this->level->isClientMaybe) {
 		this->spawnAtLocation(Item::itemFrame->itemID, 1);
 	}
 }

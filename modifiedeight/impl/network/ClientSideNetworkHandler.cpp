@@ -529,7 +529,9 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID&, struct ChunkDat
 				}
 
 				chunk->unsaved = 0;
-				this->chunksLoaded[16 * pk->xPos + pk->zPos] = 1;
+				if((uint32_t)pk->xPos <= 0xF && pk->zPos >= 0 && pk->zPos <= 15) {
+					this->chunksLoaded[16 * pk->xPos + pk->zPos] = 1;
+				}
 				if(this->areAllChunksLoaded()) {
 					ReadyPacket v47(2);
 					this->rakNetInstance->send(v47);

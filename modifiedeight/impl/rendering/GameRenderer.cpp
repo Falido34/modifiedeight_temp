@@ -771,7 +771,7 @@ void GameRenderer::renderLevel(float a2) {
 	this->minecraft->levelRenderer->renderNameTags(a2);
 	if(this->field_4C == 1.0) {
 		if(viewEntityMaybe->isPlayer()) {
-			if(!this->minecraft->currentScreen && this->minecraft->selectedObject.hitType != 2 && !viewEntityMaybe->isUnderLiquid(Material::water)) {
+			if(!this->minecraft->currentScreen && this->minecraft->selectedObject.hitType != 2) {
 				if(!this->minecraft->options.thirdPerson) {
 #ifdef PCTWEAKS
 					levelRenderer->renderHitOutline((Player*)viewEntityMaybe, this->minecraft->selectedObject, 0, 0, a2);

@@ -17,29 +17,32 @@ bool_t ItemFrameItem::useOn(ItemInstance* item, Player* player, Level* level, in
 		return 0;
 	}
 
-	int32_t dir = 0;
-	if (side == 0) dir = 4;
-	else if (side == 1) dir = 5;
-	else if (side == 2) dir = 2;
-	else if (side == 3) dir = 0;
-	else if (side == 4) dir = 1;
-	else if (side == 5) dir = 3;
+	if (!level->isClientMaybe) {
+		int32_t dir = 0;
+		if (side == 0) dir = 4;
+		else if (side == 1) dir = 5;
+		else if (side == 2) dir = 2;
+		else if (side == 3) dir = 0;
+		else if (side == 4) dir = 1;
+		else if (side == 5) dir = 3;
 
-	ItemFrame* frame = new ItemFrame(level, x, y, z, dir);
-	if (dir == 4 || dir == 5) {
-		int playerDir = Mth::floor((double)(player->yaw * 4.0f / 360.0f) + 0.5f) & 3;
-		frame->yaw = (float)(playerDir * 90);
-		frame->prevYaw = frame->yaw;
-	}
-	if (frame->survives()) {
-		level->addEntity(frame);
-		if (player->inventory && player->inventory->field_20 == 0) {
-			item->count--;
+		ItemFrame* frame = new ItemFrame(level, x, y, z, dir);
+		if (dir == 4 || dir == 5) {
+			int playerDir = Mth::floor((double)(player->yaw * 4.0f / 360.0f) + 0.5f) & 3;
+			frame->yaw = (float)(playerDir * 90);
+			frame->prevYaw = frame->yaw;
 		}
-		level->playSound(frame, "dig.wood", 1.0f, 1.0f);
-		return 1;
-	} else {
-		delete frame;
-		return 0;
+		if (frame->survives()) {
+			level->addEntity(frame);
+			if (player->inventory && player->inventory->field_20 == 0) {
+				item->count--;
+			}
+			level->playSound(frame, "dig.wood", 1.0f, 1.0f);
+			return 1;
+		} else {
+			delete frame;
+			return 0;
+		}
 	}
+	return 1;
 }

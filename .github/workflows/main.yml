@@ -69,6 +69,9 @@ jobs:
           cp -r ../modifiedeight/assets/* modifiedeight/build/assets/ 2>/dev/null || true
           cp -r ../platforms/android/app/src/newadditions/assets/* modifiedeight-newadditions/build/assets/ 2>/dev/null || true
           cp -r ../modifiedeight-newadditions/assets/* modifiedeight-newadditions/build/assets/ 2>/dev/null || true
+          mkdir -p modifiedeight/build/patches modifiedeight-newadditions/build/patches
+          cp -r ../patches/VanillaTextures modifiedeight/build/patches/ 2>/dev/null || true
+          cp -r ../patches/VanillaTextures modifiedeight-newadditions/build/patches/ 2>/dev/null || true
 
       - name: Upload Linux Classic Artifact
         uses: actions/upload-artifact@v4
@@ -77,6 +80,7 @@ jobs:
           path: |
             build/modifiedeight/build/modifiedeight
             build/modifiedeight/build/assets
+            build/modifiedeight/build/patches
 
       - name: Upload Linux New Additions Artifact
         uses: actions/upload-artifact@v4
@@ -85,6 +89,7 @@ jobs:
           path: |
             build/modifiedeight-newadditions/build/modifiedeight-newadditions
             build/modifiedeight-newadditions/build/assets
+            build/modifiedeight-newadditions/build/patches
 
   build-windows:
     runs-on: ubuntu-latest
@@ -165,7 +170,7 @@ jobs:
           cp /usr/lib/gcc/x86_64-w64-mingw32/*-posix/libgcc_s_seh-1.dll . 2>/dev/null || true
           cp /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll . 2>/dev/null || true
 
-          mkdir -p win-classic/assets win-newadditions/assets
+          mkdir -p win-classic/assets win-newadditions/assets win-classic/patches win-newadditions/patches
           cp modifiedeight/build/modifiedeight.exe win-classic/
           cp modifiedeight-newadditions/build/modifiedeight-newadditions.exe win-newadditions/
           cp *.dll win-classic/
@@ -174,6 +179,8 @@ jobs:
           cp -r ../modifiedeight/assets/* win-classic/assets/ 2>/dev/null || true
           cp -r ../platforms/android/app/src/newadditions/assets/* win-newadditions/assets/ 2>/dev/null || true
           cp -r ../modifiedeight-newadditions/assets/* win-newadditions/assets/ 2>/dev/null || true
+          cp -r ../patches/VanillaTextures win-classic/patches/ 2>/dev/null || true
+          cp -r ../patches/VanillaTextures win-newadditions/patches/ 2>/dev/null || true
 
       - name: Upload Windows Classic Artifact
         uses: actions/upload-artifact@v4
@@ -183,6 +190,7 @@ jobs:
             build/win-classic/modifiedeight.exe
             build/win-classic/*.dll
             build/win-classic/assets
+            build/win-classic/patches
 
       - name: Upload Windows New Additions Artifact
         uses: actions/upload-artifact@v4
@@ -192,6 +200,7 @@ jobs:
             build/win-newadditions/modifiedeight-newadditions.exe
             build/win-newadditions/*.dll
             build/win-newadditions/assets
+            build/win-newadditions/patches
 
   build-ios:
     runs-on: ubuntu-24.04

@@ -8,6 +8,7 @@ struct MultiPlayerLevel;
 struct Minecraft;
 struct IRakNetInstance;
 struct SBufferedBlockUpdate;
+extern bool g_isNewAdditionsServer;
 struct ClientSideNetworkHandler: NetEventCallback
 {
 	Minecraft* minecraft;

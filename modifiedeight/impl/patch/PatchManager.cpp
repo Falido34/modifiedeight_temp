@@ -1009,6 +1009,7 @@ void PatchManager::scanPatches() {
 	this->patches_.clear();
 
 	std::string dir = this->getPatchesDir();
+	bool enabledTxtExists = isRegularFile(dir + "/enabled.txt");
 	std::vector<std::string> enabledOrder;
 	{
 		std::ifstream ef((dir + "/enabled.txt").c_str());
@@ -1144,6 +1145,9 @@ void PatchManager::scanPatches() {
 				}
 				if (root.isMember("description") && root["description"].isString()) {
 					entry.description = root["description"].asString();
+				}
+				if (root.isMember("defaultEnabled") && root["defaultEnabled"].isBool() && root["defaultEnabled"].asBool() && !enabledTxtExists) {
+					entry.enabled = true;
 				}
 			} else if (isNativeLibRel(r)) {
 				entry.hasNativeLib = true;

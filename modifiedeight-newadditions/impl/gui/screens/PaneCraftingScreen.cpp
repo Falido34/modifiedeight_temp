@@ -140,7 +140,8 @@ void PaneCraftingScreen::initCategories() {
 	std::vector<Recipe*>* vec = Recipes::getInstance()->getRecipes();
 	std::vector<Recipe*> a3;
 	a3.reserve(vec->size());
-	bool isServer = this->minecraft && (this->minecraft->isOnlineClient() || (this->minecraft->level && this->minecraft->level->isClientMaybe));
+	extern bool g_isNewAdditionsServer;
+	bool isServer = this->minecraft && (this->minecraft->isOnlineClient() || (this->minecraft->level && this->minecraft->level->isClientMaybe)) && !g_isNewAdditionsServer;
 	for(int j = 0; j < vec->size(); ++j) {
 		Recipe* r = vec->at(j);
 		if(this->field_17C >= r->getCraftingSize()) {

@@ -623,7 +623,8 @@ void CreativeInventoryScreen::init() {
   for (int i = 0; i < NUM_TABS; i++) {
     this->field_78[i].reset();
   }
-  bool isServer = this->minecraft && (this->minecraft->isOnlineClient() || (this->minecraft->level && this->minecraft->level->isClientMaybe));
+  extern bool g_isNewAdditionsServer;
+  bool isServer = this->minecraft && (this->minecraft->isOnlineClient() || (this->minecraft->level && this->minecraft->level->isClientMaybe)) && !g_isNewAdditionsServer;
   CreativeInventoryScreen::populateFilteredItems(isServer);
 
   NinePatchFactory v16(this->minecraft->texturesPtr, "gui/spritesheet.png");

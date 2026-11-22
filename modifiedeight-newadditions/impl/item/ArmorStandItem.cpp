@@ -17,20 +17,22 @@ bool_t ArmorStandItem::useOn(ItemInstance* item, Player* player, Level* level, i
 		return 0;
 	}
 
-	Tile* clickedTile = Tile::tiles[level->getTile(x, y, z)];
-	float topY = (float)y + (clickedTile ? clickedTile->maxY : 1.0f);
-	float placeX = (float)x + 0.5f;
-	float placeY = topY;
-	float placeZ = (float)z + 0.5f;
+	if (!level->isClientMaybe) {
+		Tile* clickedTile = Tile::tiles[level->getTile(x, y, z)];
+		float topY = (float)y + (clickedTile ? clickedTile->maxY : 1.0f);
+		float placeX = (float)x + 0.5f;
+		float placeY = topY;
+		float placeZ = (float)z + 0.5f;
 
-	ArmorStand* stand = new ArmorStand(level, placeX, placeY, placeZ);
-	stand->yaw = player->yaw + 180.0f;
-	stand->prevYaw = player->yaw + 180.0f;
-	level->addEntity(stand);
+		ArmorStand* stand = new ArmorStand(level, placeX, placeY, placeZ);
+		stand->yaw = player->yaw + 180.0f;
+		stand->prevYaw = player->yaw + 180.0f;
+		level->addEntity(stand);
 
-	if (!player->abilities.instabuild && (!player->inventory || player->inventory->field_20 == 0)) {
-		item->count--;
+		if (!player->abilities.instabuild && (!player->inventory || player->inventory->field_20 == 0)) {
+			item->count--;
+		}
+		level->playSound(stand, "dig.wood", 1.0f, 1.0f);
 	}
-	level->playSound(stand, "dig.wood", 1.0f, 1.0f);
 	return 1;
 }

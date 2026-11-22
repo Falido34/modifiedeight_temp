@@ -244,7 +244,8 @@ bool_t ArmorScreen::takeAndClearSlot(int32_t a2) {
 }
 void ArmorScreen::updateItems() {
 	this->field_1E0.clear();
-	bool isServer = this->minecraft && (this->minecraft->isOnlineClient() || (this->minecraft->level && this->minecraft->level->isClientMaybe));
+	extern bool g_isNewAdditionsServer;
+	bool isServer = this->minecraft && (this->minecraft->isOnlineClient() || (this->minecraft->level && this->minecraft->level->isClientMaybe)) && !g_isNewAdditionsServer;
 	if (this->minecraft->gameMode && this->minecraft->gameMode->isCreativeType()) {
 		static const Item* creativeArmors[] = {
 			Item::helmet_cloth, Item::chestplate_cloth, Item::leggings_cloth, Item::boots_cloth,

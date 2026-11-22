@@ -55,8 +55,8 @@ public:
 		else if (data == 8) plant = Tile::mushroom2;
 		else if (data == 9) plant = Tile::mushroom1;
 		else if (data == 10) plant = Tile::cactus;
-		else if (data == 11) plant = Tile::deadBush;
-		else if (data == 12) { plant = Tile::tallgrass; aux = 2; }
+		else if (data == 11) plant = Tile::flowerHoustonia;
+		else if (data == 12) plant = Tile::flowerPaeonia;
 		else if (data == 13) plant = Tile::flowerAllium;
 		else if (data == 14) plant = Tile::flowerOrchid;
 		else if (data == 15) plant = Tile::flowerDaisy;
@@ -121,13 +121,11 @@ public:
 			else if (Tile::mushroom2 && id == Tile::mushroom2->blockID) plantData = 8;
 			else if (Tile::mushroom1 && id == Tile::mushroom1->blockID) plantData = 9;
 			else if (Tile::cactus && id == Tile::cactus->blockID) plantData = 10;
-			else if (Tile::deadBush && id == Tile::deadBush->blockID) plantData = 11;
-			else if (Tile::tallgrass && id == Tile::tallgrass->blockID && aux == 2) plantData = 12;
+			else if (Tile::flowerHoustonia && id == Tile::flowerHoustonia->blockID) plantData = 11;
+			else if (Tile::flowerPaeonia && id == Tile::flowerPaeonia->blockID) plantData = 12;
 			else if (Tile::flowerAllium && id == Tile::flowerAllium->blockID) plantData = 13;
 			else if (Tile::flowerOrchid && id == Tile::flowerOrchid->blockID) plantData = 14;
 			else if (Tile::flowerDaisy && id == Tile::flowerDaisy->blockID) plantData = 15;
-			else if (Tile::flowerPaeonia && id == Tile::flowerPaeonia->blockID) plantData = 15;
-			else if (Tile::flowerHoustonia && id == Tile::flowerHoustonia->blockID) plantData = 15;
 
 			if (plantData > 0) {
 				level->setData(x, y, z, plantData, 3);

@@ -110,6 +110,9 @@ static void performPickBlock(Minecraft *mc) {
     } else if (Tile::cake && tile == Tile::cake) {
       pickId = Item::cake ? Item::cake->itemID : 354;
       pickData = 0;
+    } else if (Tile::flowerPot && tile == Tile::flowerPot) {
+      pickId = Item::flowerPot ? Item::flowerPot->itemID : 390;
+      pickData = 0;
     } else if (Tile::crops && tile == Tile::crops) {
       pickId = Item::seeds_wheat ? Item::seeds_wheat->itemID : 295;
       pickData = 0;
@@ -272,7 +275,7 @@ bool_t AppPlatform_sdl::sdlCtxInit() {
 #endif
 
   SDL_Init(SDL_INIT_VIDEO);
-  SDL_WM_SetCaption("ModifiedEight New Additions 1.8.0.1_build3", 0);
+  SDL_WM_SetCaption("ModifiedEight New Additions 1.8.0.1_build4", 0);
 
   {
     int w, h, ch;
@@ -618,7 +621,7 @@ void AppPlatform_sdl::init() {
           if (online < 1 && curState == 3)
             online = 1;
           DiscordRPC::update(
-              details, "icon", "ModifiedEight New Additions 1.8.0.1_build3",
+              details, "icon", "ModifiedEight New Additions 1.8.0.1_build4",
               {{"Get Client", "https://modifiedeight.gitlab.io/"}},
               curState == 3 ? online : 0, curState == 3 ? online : 0);
         }

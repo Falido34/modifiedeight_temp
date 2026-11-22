@@ -1,10 +1,13 @@
 #include <network/ClientSideNetworkHandler.hpp>
+bool g_isNewAdditionsServer = false;
 #include <level/LevelHeight.hpp>
 #include <Minecraft.hpp>
 #include <entity/Arrow.hpp>
 #include <entity/EntityFactory.hpp>
+#include <entity/ArmorStand.hpp>
 #include <entity/FallingTile.hpp>
 #include <entity/ItemEntity.hpp>
+#include <entity/ItemFrame.hpp>
 #include <entity/LocalPlayer.hpp>
 #include <entity/MobFactory.hpp>
 #include <entity/Painting.hpp>
@@ -173,6 +176,7 @@ void ClientSideNetworkHandler::levelGenerated(Level* a2) {
 ClientSideNetworkHandler::~ClientSideNetworkHandler() {
 }
 void ClientSideNetworkHandler::onConnect(const RakNet::RakNetGUID& a2) {
+	g_isNewAdditionsServer = false;
 	a2.ToString();
 	this->rakPeer->GetMyGUID().ToString();
 	this->field_18 = a2;
@@ -181,10 +185,12 @@ void ClientSideNetworkHandler::onConnect(const RakNet::RakNetGUID& a2) {
 	this->rakNetInstance->send(v10);
 }
 void ClientSideNetworkHandler::onUnableToConnect() {
+	g_isNewAdditionsServer = false;
 	this->minecraft->setScreen(new DisconnectionScreen("Unable to connect to world."));
 }
 
 void ClientSideNetworkHandler::onDisconnect(const RakNet::RakNetGUID& a2) {
+	g_isNewAdditionsServer = false;
 	if(this->level) {
 		this->level->isClientMaybe = 0;
 		int v5 = this->level->playersMaybe.size() - 1;
@@ -304,6 +310,11 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID&, struct AddEntit
 				int32_t v9 = -pk->did;
 				((FallingTile*)e)->blockID = (uint8_t)v9;
 				((FallingTile*)e)->blockMetaMaybe = v9 >> 16;
+			} else if(pk->type == 71) {
+				((ItemFrame*)e)->setDir(pk->did);
+			} else if(pk->type == 78) {
+				e->yaw = (float)pk->did;
+				e->prevYaw = e->yaw;
 			} else if(pk->type != 80) {
 LABEL_10:
 				if(pk->did > 0) {
@@ -311,13 +322,15 @@ LABEL_10:
 				}
 				this->level->putEntity(pk->eid, e);
 				return;
+			} else {
+				Entity* ee = this->level->getEntity(pk->did);
+				if(ee && ee->isMob()) {
+					((Arrow*)e)->shooterEID = ee->entityId;
+				}
+				goto LABEL_10;
 			}
-			//XXX ???
-			Entity* ee = this->level->getEntity(pk->did);
-			if(ee && ee->isMob()) {
-				((Arrow*)e)->shooterEID = ee->entityId;
-			}
-			goto LABEL_10;
+			this->level->putEntity(pk->eid, e);
+			return;
 		}
 	}
 }
@@ -451,6 +464,10 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID&, struct ExplodeP
 	}
 }
 void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID& a2, struct LevelEventPacket* a3) {
+	if(a3->evid == 9811 && a3->x == 1 && a3->data == 1) {
+		g_isNewAdditionsServer = true;
+		return;
+	}
 	if(this->level) {
 		if(a3->evid == 9800) {
 			this->minecraft->player->setAllPlayersSleeping();
@@ -558,7 +575,9 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID&, struct ChunkDat
 				}
 
 				chunk->unsaved = 0;
-				this->chunksLoaded[16 * pk->xPos + pk->zPos] = 1;
+				if((uint32_t)pk->xPos <= 0xF && pk->zPos >= 0 && pk->zPos <= 15) {
+					this->chunksLoaded[16 * pk->xPos + pk->zPos] = 1;
+				}
 				if(this->areAllChunksLoaded()) {
 					ReadyPacket v47(2);
 					this->rakNetInstance->send(v47);
@@ -598,6 +617,13 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID&, struct PlayerEq
 						v7->inventory->unlinkSlot(v7->inventory->selectedSlot);
 					}
 				}
+			} else if(ent->getEntityTypeId() == 78) {
+				ArmorStand* as = (ArmorStand*)ent;
+				if(a3->itemID) {
+					as->handItem = ItemInstance(a3->itemID, 1, a3->itemMeta);
+				} else {
+					as->handItem = ItemInstance();
+				}
 			}
 		}
 	}
@@ -632,6 +658,21 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID&, struct PlayerAr
 					_D663005E(v7, a3->chestId, 1u);
 					_D663005E(v7, a3->legsId, 2u);
 					_D663005E(v7, a3->bootsId, 3u);
+				}
+			} else if(ent->getEntityTypeId() == 78) {
+				ArmorStand* as = (ArmorStand*)ent;
+				int ids[4] = { a3->headId, a3->chestId, a3->legsId, a3->bootsId };
+				for(int i = 0; i < 4; ++i){
+					uint8_t uid = (uint8_t)ids[i];
+					if(uid != 0xFF) {
+						if(uid >= 100 && Tile::tiles[uid]) {
+							as->armorItems[i] = ItemInstance(Tile::tiles[uid], 1, 0);
+						} else {
+							as->armorItems[i] = ItemInstance(uid + 256, 1, 0);
+						}
+					} else {
+						as->armorItems[i] = ItemInstance();
+					}
 				}
 			}
 		}
