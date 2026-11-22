@@ -147,6 +147,8 @@ void MobRenderer::render(Entity* a2_, float a3, float a4, float a5, float a6, fl
 			if(v25) {
 				glEnable(v25);
 			}
+			glEnable(GL_ALPHA_TEST);
+			glAlphaFunc(GL_GREATER, 0.1f);
 			if(this->armorModel->field_5) {
 				if(graphics) {
 					Color4 params(10, 10, 1, 10);
@@ -159,6 +161,8 @@ void MobRenderer::render(Entity* a2_, float a3, float a4, float a5, float a6, fl
 					a2->setupLighting(1, a7);
 				}
 			}
+			glAlphaFunc(GL_GREATER, 0.5f);
+			glDisable(GL_ALPHA_TEST);
 			if(v26) {
 				glDisable(v26);
 			}

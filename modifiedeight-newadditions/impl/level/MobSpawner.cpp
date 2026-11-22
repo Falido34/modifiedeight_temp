@@ -40,33 +40,36 @@ Pos MobSpawner::getRandomPosWithin(Level *a2, int32_t startChunkX,
 }
 bool_t MobSpawner::isSpawnPositionOk(const MobCategory &a1, Level *level,
                                      int32_t x, int32_t y, int32_t z) {
+  if (y <= 1 || y >= 127) {
+    return 0;
+  }
   if (a1.material == Material::water) {
     if (!level->getMaterial(x, y, z)->isLiquid()) {
       return 0;
     }
   } else {
+    if (level->getMaterial(x, y, z)->isLiquid() ||
+        level->getMaterial(x, y - 1, z)->isLiquid()) {
+      return 0;
+    }
+    if (level->isSolidBlockingTile(x, y, z)) {
+      return 0;
+    }
     int32_t tileBelow = level->getTile(x, y - 1, z);
+    if (tileBelow == Tile::leaves->blockID) {
+      return 0;
+    }
     Biome* b = level->getBiome(x, z);
     bool isSwamp = (b == Biome::swampland);
     if (isSwamp) {
       if (tileBelow != Tile::grass->blockID && tileBelow != Tile::dirt->blockID &&
-          tileBelow != Tile::sand->blockID && tileBelow != Tile::leaves->blockID &&
-          tileBelow != Tile::waterLily->blockID && tileBelow != Tile::water->blockID &&
-          tileBelow != Tile::calmWater->blockID && tileBelow != Tile::clay->blockID &&
-          tileBelow != Tile::gravel->blockID && !level->isSolidBlockingTile(x, y - 1, z)) {
-        return 0;
-      }
-      if (level->isSolidBlockingTile(x, y, z)) {
+          tileBelow != Tile::sand->blockID && tileBelow != Tile::waterLily->blockID &&
+          tileBelow != Tile::clay->blockID && tileBelow != Tile::gravel->blockID &&
+          !level->isSolidBlockingTile(x, y - 1, z)) {
         return 0;
       }
     } else {
       if (!level->isSolidBlockingTile(x, y - 1, z)) {
-        return 0;
-      }
-      if (level->isSolidBlockingTile(x, y, z)) {
-        return 0;
-      }
-      if (level->getMaterial(x, y, z)->isLiquid()) {
         return 0;
       }
     }
@@ -75,16 +78,38 @@ bool_t MobSpawner::isSpawnPositionOk(const MobCategory &a1, Level *level,
 }
 
 static int32_t getCreatureSpawnY(Level *level, int32_t x, int32_t z) {
-  int32_t top = level->getTopSolidBlock(x, z);
-  if (top > 1 && top < 126) {
-    return top;
-  }
-  int32_t maxY = LevelHeight::maxY();
-  int32_t y = maxY;
+  int32_t y = level->getHeightmap(x, z);
+  if (y >= 126) y = 126;
   while (y > 1) {
-    if (!level->isSolidBlockingTile(x, y, z) &&
-        level->isSolidBlockingTile(x, y - 1, z)) {
-      return y;
+    int32_t t = level->getTile(x, y, z);
+    if (t == 0 ||
+        t == Tile::leaves->blockID ||
+        t == Tile::treeTrunk->blockID ||
+        t == Tile::vine->blockID ||
+        t == Tile::tallgrass->blockID ||
+        t == Tile::flower->blockID ||
+        t == Tile::rose->blockID ||
+        t == Tile::mushroom1->blockID ||
+        t == Tile::mushroom2->blockID ||
+        t == Tile::topSnow->blockID ||
+        (Tile::flowerOrchid && t == Tile::flowerOrchid->blockID) ||
+        (Tile::deadBush && t == Tile::deadBush->blockID)) {
+      --y;
+      continue;
+    }
+    if (t == Tile::waterLily->blockID) {
+      return y + 1;
+    }
+    if (t == Tile::water->blockID || t == Tile::calmWater->blockID ||
+        level->getMaterial(x, y, z)->isLiquid()) {
+      return -1;
+    }
+    if (level->isSolidBlockingTile(x, y, z)) {
+      if (y + 1 < 127 && !level->isSolidBlockingTile(x, y + 1, z) &&
+          !level->getMaterial(x, y + 1, z)->isLiquid()) {
+        return y + 1;
+      }
+      return -1;
     }
     --y;
   }
@@ -157,7 +182,10 @@ void MobSpawner::postProcessSpawnMobs(Level *a2, Biome *a3, int32_t a4,
             }
             mob->moveTo((float)v35 + 0.5, (float)top, (float)v50 + 0.5,
                         a8->nextFloat() * 360.0, 0.0);
-            if (mob->canSpawn() || !a2->isSolidBlockingTile(v35, top, v50)) {
+            bool_t canSp = (data->mobtype == 37 || data->mobtype == 40)
+                               ? mob->canSpawn()
+                               : (mob->canSpawn() || (!a2->isSolidBlockingTile(v35, top, v50) && !a2->getMaterial(v35, top, v50)->isLiquid()));
+            if (canSp) {
               a2->addEntity(mob);
               v43 = 1;
               MobSpawner::finalizeMobSettings(mob, a2, (float)v35 + 0.5,
@@ -299,8 +327,11 @@ bool_t MobSpawner::tick(Level *level, bool_t hostiles, bool_t animals) {
         Biome *b = level->getBiome(x, z);
         bool isSwamp = (b == Biome::swampland);
         if (isSwamp && (level->random.genrand_int32() % 2 == 0)) {
-          int topS = level->getHeightmap(x, z) + 1;
-          if (topS >= 45 && topS <= 75) {
+          int topS = getCreatureSpawnY(level, x, z);
+          if (topS >= 50 && topS <= 75 &&
+              !level->getMaterial(x, topS, z)->isLiquid() &&
+              !level->getMaterial(x, topS - 1, z)->isLiquid() &&
+              level->isSolidBlockingTile(x, topS - 1, z)) {
             y = topS;
             foundCaveFloor = true;
           }
@@ -375,11 +406,18 @@ bool_t MobSpawner::tick(Level *level, bool_t hostiles, bool_t animals) {
             int topS = getCreatureSpawnY(level, sx, sz);
             if (topS > 1 && topS < 126) {
               sy = topS;
+            } else {
+              continue;
             }
           } else if (isMonster && isSwamp && sy >= 45 && sy <= 75) {
-            int topS = level->getHeightmap(sx, sz) + 1;
-            if (topS >= 45 && topS <= 75) {
+            int topS = getCreatureSpawnY(level, sx, sz);
+            if (topS >= 50 && topS <= 75 &&
+                !level->getMaterial(sx, topS, sz)->isLiquid() &&
+                !level->getMaterial(sx, topS - 1, sz)->isLiquid() &&
+                level->isSolidBlockingTile(sx, topS - 1, sz)) {
               sy = topS;
+            } else {
+              continue;
             }
           }
 
@@ -486,14 +524,14 @@ bool_t MobSpawner::tick(Level *level, bool_t hostiles, bool_t animals) {
               if (level->getRawBrightness(sx, sy, sz) > 7)
                 continue;
             }
-          } else if (isCreature) {
+          } else if ( isCreature) {
             int tileBelow = level->getTile(sx, sy - 1, sz);
             if (tileBelow != Tile::grass->blockID && tileBelow != Tile::snow->blockID &&
                 tileBelow != Tile::ice->blockID && tileBelow != Tile::topSnow->blockID &&
                 tileBelow != Tile::sand->blockID && tileBelow != Tile::dirt->blockID &&
-                tileBelow != Tile::leaves->blockID && tileBelow != Tile::rock->blockID &&
-                tileBelow != Tile::waterLily->blockID && tileBelow != Tile::water->blockID &&
-                tileBelow != Tile::calmWater->blockID && tileBelow != Tile::clay->blockID &&
+                tileBelow != Tile::rock->blockID &&
+                (spawnData.mobtype != 40 || tileBelow != Tile::waterLily->blockID) &&
+                tileBelow != Tile::clay->blockID &&
                 tileBelow != Tile::gravel->blockID)
               continue;
             if (spawnData.mobtype != 37 && spawnData.mobtype != 40 && level->getRawBrightness(sx, sy, sz) < 5)
@@ -504,16 +542,20 @@ bool_t MobSpawner::tick(Level *level, bool_t hostiles, bool_t animals) {
           if (!mob)
             continue;
 
+          if (spawnData.mobtype == 37) {
+            Slime *slm = (Slime*)mob;
+            int r = (int)(level->random.genrand_int32() % 10);
+            int sz = (r < 6) ? 1 : ((r < 9) ? 2 : 4);
+            slm->setSlimeSize(sz);
+          }
+
           mob->moveTo(fx, fy, fz, level->random.nextFloat() * 360.0f, 0.0f);
-          if (mob->canSpawn() || !level->isSolidBlockingTile(sx, sy, sz)) {
+          bool_t canSp = (spawnData.mobtype == 37 || spawnData.mobtype == 40)
+                             ? mob->canSpawn()
+                             : (mob->canSpawn() || (!level->isSolidBlockingTile(sx, sy, sz) && !level->getMaterial(sx, sy, sz)->isLiquid()));
+          if (canSp) {
             level->addEntity(mob);
             MobSpawner::finalizeMobSettings(mob, level, fx, fy, fz);
-            if (spawnData.mobtype == 37) {
-              Slime *slm = (Slime*)mob;
-              int r = (int)(level->random.genrand_int32() % 10);
-              int sz = (r < 5) ? 1 : ((r < 8) ? 2 : 4);
-              slm->setSlimeSize(sz);
-            }
             if (spawnData.mobtype >= 27 && spawnData.mobtype <= 30) {
               AbstractFish* fish = (AbstractFish*)mob;
               if (!schoolLeader) {

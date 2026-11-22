@@ -54,8 +54,7 @@ static bool translateCustomDesc(const std::string &key, std::string &out) {
     out = "Used as a barrier that cannot be jumped over.";
     return true;
   }
-  if (key == "desc.slab" || key.find("desc.coloredslab") == 0 ||
-      key.find("desc.coloredbrickslab") == 0) {
+  if (key == "desc.slab" || key.find("desc.coloredslab") == 0) {
     out = "Used for making long staircases.";
     return true;
   }
@@ -261,50 +260,6 @@ static bool translateWoodVariant(const std::string &key, std::string &out) {
       }
     }
     out = "Colored Slab";
-    return true;
-  }
-
-  if (key.find("tile.coloredBricks.") == 0) {
-    std::string color = key.substr(19);
-    size_t dot = color.find('.');
-    if (dot != std::string::npos)
-      color = color.substr(0, dot);
-    for (int i = 0; i < 16; i++) {
-      if (color == colors[i]) {
-        out = colorNames[i] + " Bricks";
-        return true;
-      }
-    }
-    out = "Colored Bricks";
-    return true;
-  }
-
-  if (key.find("tile.coloredBrickStairs.") == 0) {
-    std::string indexStr = key.substr(24);
-    size_t dot = indexStr.find('.');
-    if (dot != std::string::npos)
-      indexStr = indexStr.substr(0, dot);
-    int idx = getIdx(indexStr);
-    if (idx >= 0 && idx < 16) {
-      out = colorNames[idx] + " Brick Stairs";
-      return true;
-    }
-    out = "Colored Brick Stairs";
-    return true;
-  }
-
-  if (key.find("tile.coloredBrickSlab.") == 0) {
-    std::string color = key.substr(22);
-    size_t dot = color.find('.');
-    if (dot != std::string::npos)
-      color = color.substr(0, dot);
-    for (int i = 0; i < 16; i++) {
-      if (color == colors[i]) {
-        out = colorNames[i] + " Brick Slab";
-        return true;
-      }
-    }
-    out = "Colored Brick Slab";
     return true;
   }
 

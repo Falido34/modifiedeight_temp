@@ -285,7 +285,7 @@ void TouchscreenInput::tick(Player *a2) {
   this->field_B0[5] = 0;
   v24 = 0;
   v25 = Multitouch::_activePointerThisUpdateCount;
-  bool isRidingBoat = a2 && a2->isRiding() && a2->ridingAt && (a2->ridingAt->getEntityTypeId() == 40 || a2->ridingAt->entityRenderId == BOAT);
+  bool isRidingBoat = a2 && a2->isRiding() && a2->ridingAt && (a2->ridingAt->getEntityTypeId() == 41 || a2->ridingAt->entityRenderId == BOAT);
   static bool s_wasRidingBoat = false;
   if (isRidingBoat != s_wasRidingBoat) {
     if (isRidingBoat) {

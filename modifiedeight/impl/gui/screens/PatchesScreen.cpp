@@ -21,28 +21,48 @@
 static void renderStyledDialogBox(Screen* scr, Minecraft* mc, int dx, int dy, int dw, int dh, bool withProgressBar, int progressYOffset = -1) {
 	NinePatchFactory npf(mc->texturesPtr, "gui/spritesheet.png");
 	NinePatchLayer* dlgBg = npf.createSymmetrical({34, 43, 14, 14}, 3, 3, (float)dw, (float)dh);
-	NinePatchLayer* hdrBg = npf.createSymmetrical({0, 32, 8, 8}, 3, 3, (float)(dw - 6), 20.0f);
+	NinePatchLayer* insetBg = npf.createSymmetrical({0, 32, 8, 8}, 3, 3, (float)(dw - 14), (float)(dh - 26));
 	if (dlgBg) {
 		dlgBg->draw(Tesselator::instance, (float)dx, (float)dy);
 		delete dlgBg;
 	}
-	if (hdrBg) {
-		hdrBg->draw(Tesselator::instance, (float)(dx + 3), (float)(dy + 3));
-		delete hdrBg;
+	if (insetBg) {
+		insetBg->draw(Tesselator::instance, (float)(dx + 7), (float)(dy + 20));
+		delete insetBg;
 	}
 	if (withProgressBar) {
-		int barX0 = dx + 14;
-		int barX1 = dx + dw - 14;
+		int barX0 = dx + 18;
+		int barX1 = dx + dw - 18;
 		int barW = barX1 - barX0;
-		int py = (progressYOffset > 0) ? (dy + progressYOffset) : (dy + dh - 13);
-		scr->fill(barX0 - 1, py - 1, barX1 + 1, py + 6, 0xFF333333);
-		scr->fill(barX0, py, barX1, py + 5, 0xFF1A1A1A);
-		if (barW > 20) {
-			static int animTick = 0;
-			animTick = (animTick + 1) % 120;
-			int segW = barW / 3;
-			int pos = (animTick < 60) ? ((animTick * (barW - segW)) / 60) : (((120 - animTick) * (barW - segW)) / 60);
-			scr->fill(barX0 + pos, py, barX0 + pos + segW, py + 5, 0xFF55CC55);
+		int barH = 12;
+		int py = (progressYOffset > 0) ? (dy + progressYOffset) : (dy + dh - 26);
+		static float s_dispProg = 0.0f;
+		float targetProg = PatchManager::instance().getBuildProgress();
+		if (targetProg < 0.04f) targetProg = 0.04f;
+		if (targetProg > 1.0f) targetProg = 1.0f;
+		if (targetProg < s_dispProg - 0.25f) s_dispProg = targetProg;
+		if (s_dispProg < targetProg) {
+			s_dispProg += (targetProg - s_dispProg) * 0.14f;
+			if (s_dispProg > targetProg) s_dispProg = targetProg;
+		} else if (s_dispProg < 0.96f) {
+			s_dispProg += 0.0005f;
+		}
+		int fillW = (int)(barW * s_dispProg + 0.5f);
+		if (fillW < 2) fillW = 2;
+		if (fillW > barW) fillW = barW;
+		scr->fill(barX0 - 2, py - 2, barX1 + 2, py + barH + 2, 0xFF141414);
+		scr->fill(barX0 - 1, py - 1, barX1 + 1, py + barH + 1, 0xFF3E3E3E);
+		scr->fill(barX0, py, barX1, py + barH, 0xFF202020);
+		scr->fill(barX0, py, barX0 + fillW, py + barH, 0xFF4CC44C);
+		scr->fill(barX0, py, barX0 + fillW, py + 2, 0xFF88FF88);
+		scr->fill(barX0, py + barH - 2, barX0 + fillW, py + barH, 0xFF2B8A2B);
+		if (fillW > 2) {
+			scr->fill(barX0 + fillW - 1, py, barX0 + fillW, py + barH, 0xFF9EFF9E);
+		}
+		if (mc->font) {
+			int pct = (int)(s_dispProg * 100.0f + 0.5f);
+			if (pct > 100) pct = 100;
+			scr->drawCenteredString(mc->font, std::to_string(pct) + "%", dx + dw / 2, py + 2, 0xFFFFFFFF);
 		}
 	}
 }
@@ -506,19 +526,19 @@ void PatchesScreen::render(int32_t mx, int32_t my, float pt) {
 	}
 
 	if (building && this->font) {
-		this->fill(0, 0, this->width, this->height, 0x88000000);
-		int dw = std::min(280, this->width - 24);
-		int dh = 68;
+		this->fill(0, 0, this->width, this->height, 0x99000000);
+		int dw = std::min(264, this->width - 24);
+		int dh = 76;
 		int dx = (this->width - dw) / 2;
 		int dy = (this->height - dh) / 2;
 		renderStyledDialogBox(this, this->minecraft, dx, dy, dw, dh, true);
-		this->drawCenteredString(this->font, "Applying Patches...", this->width / 2, dy + 9, 0xFFFFFF66);
+		this->drawCenteredString(this->font, "Applying Patches...", this->width / 2, dy + 7, 0xFFFFFFA0);
 		std::string line = pm.getBuildStatus();
-		while (line.size() > 3 && this->font->width(line) > dw - 20) {
+		while (line.size() > 3 && this->font->width(line) > dw - 28) {
 			line.resize(line.size() - 4);
 			line += "...";
 		}
-		this->drawCenteredString(this->font, line, this->width / 2, dy + 33, 0xFFEEEEEE);
+		this->drawCenteredString(this->font, line, this->width / 2, dy + 28, 0xFFE6E6E6);
 	}
 }
 

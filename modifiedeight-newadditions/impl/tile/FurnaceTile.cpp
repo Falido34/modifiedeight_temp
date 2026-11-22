@@ -51,14 +51,14 @@ FurnaceTile::~FurnaceTile() {
 }
 TextureUVCoordinateSet* FurnaceTile::getTexture(int32_t a2) {
 	if(a2 == 1 || a2 == 0) {
-		return &this->field_A80;
+		return &this->field_A98;
 	}
 	if(a2 == 3) return &this->field_A50;
 	return &this->field_A80;
 }
 TextureUVCoordinateSet* FurnaceTile::getTexture(LevelSource* level, int32_t x, int32_t y, int32_t z, int32_t a6) {
 	if((uint32_t)a6 <= 1) {
-		return &this->field_A80;
+		return &this->field_A98;
 	}
 
 	if(a6 != level->getData(x, y, z)) {

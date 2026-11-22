@@ -60,6 +60,40 @@
 #include <rendering/entity/BoatRenderer.hpp>
 #include <rendering/entity/SnowGolemRenderer.hpp>
 #include <rendering/model/SnowGolemModel.hpp>
+#include <entity/Cow.hpp>
+
+struct CowSaddleModel : Model {
+	ModelPart body;
+	CowSaddleModel() : body(28, 8, 64, 32) {
+		this->body.setModel(this);
+		this->body.addBox(-5.0f, -8.0f, -4.0f, 10, 16, 8, 0.0f);
+		this->body.setPos(0.0f, 0.0f, 0.0f);
+	}
+	virtual void render(Entity* e, float a3, float a4, float a5, float a6, float a7, float a8) {
+		if (!e || ((Mob*)e)->isBaby()) return;
+		this->body.xRotAngle = 90.0f / (float)(180.0 / 3.1416);
+		glPushMatrix();
+		glTranslatef(0.0f, 7.0f * a8, 1.0f * a8);
+		glScalef(1.25f, 1.30f, 1.15f);
+		this->body.render(a8);
+		glPopMatrix();
+	}
+};
+
+struct CowRenderer : MobRenderer {
+	CowRenderer(Model* m, float s) : MobRenderer(m, s) {
+		this->setArmor(new CowSaddleModel());
+	}
+	virtual ~CowRenderer() {
+		Model* arm = this->getArmor();
+		if (arm) delete arm;
+	}
+	virtual int32_t prepareArmor(Mob* a2, int32_t a3, float) {
+		if (!a2 || !((Cow*)a2)->hasSaddle() || a3 > 0) return -1;
+		this->bindTexture("mob/saddle.png");
+		return 1;
+	}
+};
 
 EntityRenderDispatcher* EntityRenderDispatcher::instance = 0;
 float EntityRenderDispatcher::xOff = 0, EntityRenderDispatcher::yOff = 0, EntityRenderDispatcher::zOff = 0;
@@ -68,7 +102,7 @@ EntityRenderDispatcher::EntityRenderDispatcher() {
 	this->assign(ITEM_ENTITY, new ItemRenderer());
 	this->assign(HUMANOID, new HumanoidMobRenderer(0, 0));
 	this->assign(PIG, new PigRenderer(new PigModel(0.0), 0.7));
-	this->assign(COW, new MobRenderer(new CowModel(), 0));
+	this->assign(COW, new CowRenderer(new CowModel(), 0));
 	this->assign(CHICKEN, new ChickenRenderer(new ChickenModel(), 0));
 	this->assign(SHEEP, new SheepRenderer(new SheepModel(0), new SheepModel(1), 0));
 	this->assign(SKELETON, new HumanoidMobRenderer(new SkeletonModel(), 0.5));

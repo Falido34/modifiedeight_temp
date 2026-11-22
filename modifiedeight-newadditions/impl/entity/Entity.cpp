@@ -434,7 +434,7 @@ void Entity::move(float dx, float dy, float dz) {
 				minX = this->boundingBox.minX;
 				level = this->level;
 				v18 = this->boundingBox.minZ + 0.0;
-				std::vector<AABB>* cubes = level->getCubes(this, {minX + movX, this->boundingBox.minY - 1.0f, v18, movX + maxX, maxY - 1.0f, maxZ + 0.0f}, 0);
+				std::vector<AABB>* cubes = level->getCubes(this, {minX + movX, this->boundingBox.minY - 0.45f, v18, movX + maxX, maxY - 0.45f, maxZ + 0.0f}, 0);
 				if(cubes->begin() != cubes->end()) {
 					break;
 				}
@@ -455,7 +455,7 @@ void Entity::move(float dx, float dy, float dz) {
 				v23 = this->boundingBox.minX;
 				v24 = this->level;
 				v25 = movZ + this->boundingBox.minZ;
-				std::vector<AABB>* v26 = v24->getCubes(this, {v23 + 0.0f, this->boundingBox.minY - 1.0f, v25, v20 + 0.0f, v21 - 1.0f, movZ + v22}, 0);
+				std::vector<AABB>* v26 = v24->getCubes(this, {v23 + 0.0f, this->boundingBox.minY - 0.45f, v25, v20 + 0.0f, v21 - 0.45f, movZ + v22}, 0);
 				if(v26->begin() != v26->end()) {
 					break;
 				}
@@ -479,7 +479,7 @@ void Entity::move(float dx, float dy, float dz) {
 				v30 = this->boundingBox.minX;
 				v31 = this->level;
 				v32 = movZ + this->boundingBox.minZ;
-				std::vector<AABB>* v33 = v31->getCubes(this, {v30 + movX, this->boundingBox.minY - 1.0f, v32, movX + v27, v28 - 1.0f, movZ + v29}, 0);
+				std::vector<AABB>* v33 = v31->getCubes(this, {v30 + movX, this->boundingBox.minY - 0.45f, v32, movX + v27, v28 - 0.45f, movZ + v29}, 0);
 				if(v33->begin() != v33->end()) {
 					break;
 				}

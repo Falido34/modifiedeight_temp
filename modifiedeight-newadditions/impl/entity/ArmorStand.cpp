@@ -91,8 +91,11 @@ bool_t ArmorStand::hurt(Entity* attacker, int32_t damage) {
 	if (this->isDead) return 0;
 	if (attacker && attacker->isPlayer()) {
 		Player* p = (Player*)attacker;
-		if (p->inventory && p->inventory->field_20 != 0) {
+		if (p->abilities.instabuild || (p->inventory && p->inventory->field_20 != 0)) {
 			this->remove();
+			if (this->level) {
+				this->level->playSound(this, "dig.wood", 1.0f, 1.0f);
+			}
 			return 1;
 		}
 	}
@@ -106,6 +109,7 @@ bool_t ArmorStand::hurt(Entity* attacker, int32_t damage) {
 
 bool_t ArmorStand::interactWithPlayer(Player* player) {
 	if (!player || !player->inventory) return 0;
+	bool isCreative = player->abilities.instabuild || (player->inventory->field_20 != 0);
 
 	ItemInstance* held = player->inventory->getSelected();
 	if (held && !held->isNull() && held->count > 0) {
@@ -120,14 +124,14 @@ bool_t ArmorStand::interactWithPlayer(Player* player) {
 			ItemInstance oldItem = this->armorItems[slot];
 			this->armorItems[slot] = *held;
 			this->armorItems[slot].count = 1;
-			if (player->inventory->field_20 == 0) {
+			if (!isCreative) {
 				held->count--;
 				if (held->count <= 0) {
 					player->inventory->clearSlot(player->inventory->selectedSlot);
 				}
-			}
-			if (!oldItem.isNull() && oldItem.count > 0) {
-				player->inventory->add(&oldItem);
+				if (!oldItem.isNull() && oldItem.count > 0) {
+					player->inventory->add(&oldItem);
+				}
 			}
 			player->inventory->setContainerChanged();
 			if (this->level) this->level->playSound(this, "mob.armorstand.place", 1.0f, 1.0f);

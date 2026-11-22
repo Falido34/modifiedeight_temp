@@ -341,12 +341,14 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID&, struct AddPlaye
 		p->rakNetGUID = pk->clientId;
 		p->getEntityData()->assignValues(&pk->entityData);
 		if(pk->itemId) {
-			ItemInstance v10(pk->itemId, 1, pk->itemAuxValue);
+			ItemInstance v10(pk->itemId, 63, pk->itemAuxValue);
 			p->inventory->replaceSlot(9, &v10);
+			p->inventory->selectSlot(0);
+			p->inventory->linkSlot(0, 9);
 		} else {
 			p->inventory->clearSlot(9);
+			p->inventory->unlinkSlot(p->inventory->selectedSlot);
 		}
-		p->inventory->moveToSelectedSlot(9);
 		this->minecraft->gui.addMessage("server", std::string(pk->username.C_String()) + " joined the game", 200);
 	}
 }
@@ -802,17 +804,48 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID& a2, struct Adven
 		this->level->adventureSettings.field_5 = (a3->flags & 0x20) != 0;
 	}
 }
+struct PendingAnimEquip {
+	uint8_t b0, b1, b2, b3;
+};
+static std::unordered_map<int32_t, PendingAnimEquip> s_clientAnimEquip;
+
 void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID& a2, struct AnimatePacket* a3) {
 	if(this->level) {
-		if(this->minecraft->player->entityId != a3->eid || a3->action != 1) {
+		int32_t action = (uint8_t)a3->action;
+		if(!this->minecraft->player || this->minecraft->player->entityId != a3->eid || action != 1) {
 			Entity* e = this->level->getEntity(a3->eid);
 			if(e) {
 				if(e->isPlayer()) {
-					int32_t action = (uint8_t)a3->action;
 					if(action == 1) {
 						((Mob*)e)->swing();
 					} else if(action == 3) {
 						((Player*)e)->stopSleepInBed(0, 0, 0);
+					} else if((action & 0xF0) >= 0x80 && (action & 0xF0) <= 0xC0) {
+						if(!this->minecraft->player || this->minecraft->player->entityId != a3->eid) {
+							PendingAnimEquip& st = s_clientAnimEquip[a3->eid];
+							int32_t hi = action & 0xF0;
+							uint8_t nib = (uint8_t)(action & 0x0F);
+							if(hi == 0x80) st.b0 = nib;
+							else if(hi == 0x90) st.b1 = nib;
+							else if(hi == 0xA0) st.b2 = nib;
+							else if(hi == 0xB0) st.b3 = nib;
+							else if(hi == 0xC0) {
+								int32_t itemID = (st.b0 & 0x0F) | ((st.b1 & 0x0F) << 4) | ((st.b2 & 0x03) << 8);
+								int32_t itemMeta = ((st.b2 >> 2) & 0x03) | ((st.b3 & 0x0F) << 2) | ((nib & 0x0F) << 6);
+								Player* v7 = (Player*)e;
+								if(itemID > 0) {
+									ItemInstance v8(itemID, 63, itemMeta);
+									if(ItemInstance::isItem(&v8) || v8.tileClass) {
+										v7->inventory->replaceSlot(9, &v8);
+										v7->inventory->selectSlot(0);
+										v7->inventory->linkSlot(0, 9);
+									}
+								} else {
+									v7->inventory->clearSlot(9);
+									v7->inventory->unlinkSlot(v7->inventory->selectedSlot);
+								}
+							}
+						}
 					}
 				}
 			}

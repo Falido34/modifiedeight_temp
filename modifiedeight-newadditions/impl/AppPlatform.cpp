@@ -694,83 +694,6 @@ std::string AppPlatform::getDateString(int32_t) {
 int32_t AppPlatform::checkLicense(void) { return 0; }
 bool_t AppPlatform::hasBuyButtonWhenInvalidLicense(void) { return 0; }
 void AppPlatform::uploadPlatformDependentData(int32_t, void *) {}
-static AssetFile readTexturePackFile(const std::string &path) {
-  std::vector<std::string> baseDirs;
-  const char *home = getenv("HOME");
-  if (home) {
-    baseDirs.push_back(std::string(home) + "/.minecraftpe");
-  }
-  baseDirs.push_back(".");
-  baseDirs.push_back("/sdcard");
-  baseDirs.push_back("/sdcard/games/com.mojang");
-  baseDirs.push_back("/storage/emulated/0");
-  baseDirs.push_back("/storage/emulated/0/games/com.mojang");
-
-  std::string activeName = "";
-  for (const auto &dir : baseDirs) {
-    std::string activeFile = dir + "/saved_textures/_active.txt";
-    FILE *af = fopen(activeFile.c_str(), "r");
-    if (af) {
-      char name[256] = {0};
-      if (fgets(name, sizeof(name), af)) {
-        name[strcspn(name, "\r\n")] = 0;
-        activeName = name;
-      }
-      fclose(af);
-      if (!activeName.empty())
-        break;
-    }
-  }
-
-  if (activeName.empty())
-    return AssetFile(0, -1);
-
-  std::string noPrefix = path;
-  if (noPrefix.rfind("assets/images/", 0) == 0) noPrefix = noPrefix.substr(14);
-  else if (noPrefix.rfind("images/", 0) == 0) noPrefix = noPrefix.substr(7);
-  else if (noPrefix.rfind("assets/", 0) == 0) noPrefix = noPrefix.substr(7);
-
-  std::string leaf = path;
-  size_t lastSlash = leaf.find_last_of("/\\");
-  if (lastSlash != std::string::npos) {
-    leaf = leaf.substr(lastSlash + 1);
-  }
-
-  for (const auto &dir : baseDirs) {
-    std::string packDir = dir + "/saved_textures/" + activeName;
-    std::vector<std::string> cands = {
-      packDir + "/" + path,
-      packDir + "/assets/" + path,
-      packDir + "/images/" + path,
-      packDir + "/assets/images/" + path,
-      packDir + "/" + noPrefix,
-      packDir + "/images/" + noPrefix,
-      packDir + "/assets/images/" + noPrefix,
-      packDir + "/textures/" + noPrefix,
-      packDir + "/" + leaf,
-      packDir + "/images/" + leaf,
-      packDir + "/gui/" + leaf,
-      packDir + "/mob/" + leaf,
-      packDir + "/font/" + leaf
-    };
-
-    for (const auto &cand : cands) {
-      FILE *f = fopen(cand.c_str(), "rb");
-      if (f) {
-        fseek(f, 0, SEEK_END);
-        size_t size = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        uint8_t *arr = new uint8_t[size];
-        size_t r = fread(arr, 1, size, f);
-        (void)r;
-        fclose(f);
-        return AssetFile(arr, size);
-      }
-    }
-  }
-
-  return AssetFile(0, -1);
-}
 
 static std::unordered_map<std::string, std::string> s_resolvedAssetPaths;
 static std::unordered_set<std::string> s_missingAssetPaths;
@@ -792,10 +715,6 @@ AssetFile AppPlatform::readAssetFile(const std::string &path) {
   AssetFile patchFile = PatchManager::instance().readAssetFile(path);
   if (patchFile.bytes && patchFile.length > 0) {
     return patchFile;
-  }
-  AssetFile packFile = readTexturePackFile(path);
-  if (packFile.bytes && packFile.length > 0) {
-    return packFile;
   }
   FILE *f = nullptr;
   {
@@ -873,6 +792,8 @@ AssetFile AppPlatform::readAssetFile(const std::string &path) {
         prefixes.push_back(s_exeDir);
         prefixes.push_back(s_exeDir + "../../../modifiedeight-newadditions/assets/");
         prefixes.push_back(s_exeDir + "../../../modifiedeight-newadditions/assets/images/");
+        prefixes.push_back(s_exeDir + "../../../../../assets/");
+        prefixes.push_back(s_exeDir + "../../../../../assets/images/");
         prefixes.push_back(s_exeDir + "../../../platforms/android/app/src/newadditions/assets/");
         prefixes.push_back(s_exeDir + "../../../platforms/android/app/src/newadditions/assets/images/");
       }
@@ -990,25 +911,6 @@ TextureData AppPlatform::loadTexture(const std::string &a3, bool_t a4) {
       PatchManager::instance().reportError(
           "Failed to decode patched texture '" + a3 + "' from patch '" + patchId + "': " +
           (reason ? reason : "invalid image data"));
-    }
-  }
-
-  AssetFile packFile = readTexturePackFile(a3);
-  if (packFile.bytes && packFile.length > 0) {
-    TextureData data;
-    int32_t channels;
-    uint8_t *pix = stbi_load_from_memory(packFile.bytes, packFile.length,
-                                         &data.width, &data.height,
-                                         &channels, STBI_rgb_alpha);
-    delete[] packFile.bytes;
-    if (pix) {
-      data.pixels = pix;
-      data.field_C = 0;
-      data.field_10 = 0;
-      data.lod = 0;
-      data.field_18 = 0;
-      data.glTexId = 0;
-      return data;
     }
   }
 

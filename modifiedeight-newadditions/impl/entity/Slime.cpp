@@ -3,6 +3,7 @@
 #include <level/Level.hpp>
 #include <level/biome/Biome.hpp>
 #include <tile/Tile.hpp>
+#include <tile/material/Material.hpp>
 #include <item/Item.hpp>
 #include <math/Mth.hpp>
 #include <cmath>
@@ -146,18 +147,58 @@ bool_t Slime::canSpawn() {
 	int32_t y = (int32_t)floorf(this->posY);
 	int32_t z = (int32_t)floorf(this->posZ);
 	if (y <= 1 || y >= 127) return 0;
-	Biome* b = this->level->getBiome(x, z);
-	if (b == Biome::swampland) {
-		int32_t tileBelow = this->level->getTile(x, y - 1, z);
-		int32_t tileAt = this->level->getTile(x, y, z);
-		if (tileAt != 0 && tileAt != Tile::waterLily->blockID && tileAt != Tile::tallgrass->blockID && tileAt != Tile::water->blockID && tileAt != Tile::calmWater->blockID && Tile::tiles[tileAt] && Tile::tiles[tileAt]->isSolidRender()) return 0;
-		return (y >= 45 && y <= 75 && (tileBelow == Tile::grass->blockID || tileBelow == Tile::dirt->blockID || tileBelow == Tile::sand->blockID || tileBelow == Tile::leaves->blockID || tileBelow == Tile::waterLily->blockID || tileBelow == Tile::water->blockID || tileBelow == Tile::calmWater->blockID || tileBelow == Tile::clay->blockID || tileBelow == Tile::gravel->blockID || this->level->isSolidBlockingTile(x, y - 1, z)));
+	if (this->level->containsAnyLiquid(this->boundingBox)) return 0;
+	if (!this->level->isUnobstructed(this->boundingBox)) return 0;
+	std::vector<AABB>* cubes = this->level->getCubes(this, this->boundingBox, 0);
+	if (cubes && !cubes->empty()) return 0;
+	for (int32_t dx = -1; dx <= 1; ++dx) {
+		for (int32_t dz = -1; dz <= 1; ++dz) {
+			if (this->level->getMaterial(x + dx, y, z + dz)->isLiquid() ||
+			    this->level->getMaterial(x + dx, y - 1, z + dz)->isLiquid() ||
+			    this->level->getMaterial(x + dx, y + 1, z + dz)->isLiquid()) {
+				return 0;
+			}
+		}
 	}
-	return this->level->isSolidBlockingTile(x, y - 1, z) && !this->level->isSolidBlockingTile(x, y, z);
+	int32_t tileBelow = this->level->getTile(x, y - 1, z);
+	int32_t tileAt = this->level->getTile(x, y, z);
+	if (tileAt == Tile::water->blockID || tileAt == Tile::calmWater->blockID ||
+	    tileBelow == Tile::water->blockID || tileBelow == Tile::calmWater->blockID ||
+	    tileBelow == Tile::waterLily->blockID || tileBelow == Tile::leaves->blockID ||
+	    tileBelow == Tile::ice->blockID) {
+		return 0;
+	}
+	if (!this->level->isSolidBlockingTile(x, y - 1, z) || this->level->isSolidBlockingTile(x, y, z)) {
+		return 0;
+	}
+	int32_t nearbySlimes = 0;
+	int32_t totalSlimes = 0;
+	for (size_t i = 0; i < this->level->entities.size(); ++i) {
+		Entity* e = this->level->entities[i];
+		if (e && e != this && !e->isDead && e->getEntityTypeId() == 37) {
+			++totalSlimes;
+			float edx = e->posX - this->posX;
+			float edz = e->posZ - this->posZ;
+			if (edx * edx + edz * edz < 2304.0f) {
+				++nearbySlimes;
+			}
+		}
+	}
+	if (nearbySlimes >= 3 || totalSlimes >= 8) {
+		return 0;
+	}
+	Biome* b = this->level->getBiome(x, z);
+	if (b == Biome::swampland || b == Biome::mushroom || b == Biome::equatorialRainforest) {
+		if ((this->level->random.genrand_int32() % 8) != 0) return 0;
+		return (y >= 50 && y <= 75) || y < 40;
+	}
+	if (y >= 40) return 0;
+	if ((this->level->random.genrand_int32() % 6) != 0) return 0;
+	return 1;
 }
 
 int32_t Slime::getMaxSpawnClusterSize() {
-	return 8;
+	return 2;
 }
 
 void Slime::die(Entity* cause) {

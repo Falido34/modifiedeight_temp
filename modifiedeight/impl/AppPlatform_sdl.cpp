@@ -142,6 +142,12 @@ static void performPickBlock(Minecraft *mc) {
 #include <sound/SoundSystemDirectSound.hpp>
 #endif
 std::string AppPlatform_sdl::getImagePath(const std::string &name, bool_t t) {
+  if (name.rfind("images/", 0) == 0) {
+    return "assets/" + name;
+  }
+  if (name.rfind("assets/images/", 0) == 0) {
+    return name;
+  }
   return "assets/images/" + name;
 }
 
@@ -155,6 +161,24 @@ AssetFile AppPlatform_sdl::readAssetFile(const std::string &path) {
 void AppPlatform_sdl::loadPNG(ImageData &data, const std::string &path,
                               bool_t t) {
   int32_t channels;
+  std::string patchId, patchDiskPath;
+  AssetFile patchFile = PatchManager::instance().readAssetFile(path, &patchId, &patchDiskPath);
+  if (patchFile.bytes && patchFile.length > 0) {
+    uint8_t *pixels =
+        stbi_load_from_memory(patchFile.bytes, patchFile.length, &data.width,
+                              &data.height, &channels, STBI_rgb_alpha);
+    delete[] patchFile.bytes;
+    if (pixels) {
+      data.field_C = 0;
+      data.pixels = pixels;
+      return;
+    }
+    const char* reason = stbi_failure_reason();
+    PatchManager::instance().reportError(
+        "Failed to load patched PNG '" + path + "' from patch '" + patchId + "': " +
+        (reason ? reason : "invalid PNG data"));
+  }
+
   AssetFile file = this->readAssetFile(path);
   if (file.bytes && file.length > 0) {
     uint8_t *pixels =
@@ -201,7 +225,7 @@ bool_t AppPlatform_sdl::sdlCtxInit() {
 #endif
 
   SDL_Init(SDL_INIT_VIDEO);
-  SDL_WM_SetCaption("ModifiedEight Classic 1.8.0_build2", 0);
+  SDL_WM_SetCaption("ModifiedEight Classic 1.8.0_build3", 0);
 
   {
     int w, h, ch;
@@ -519,7 +543,7 @@ void AppPlatform_sdl::init() {
           if (online < 1 && curState == 3)
             online = 1;
           DiscordRPC::update(
-              details, "icon", "ModifiedEight Classic 1.8.0_build2",
+              details, "icon", "ModifiedEight Classic 1.8.0_build3",
               {{"Get Client", "https://modifiedeight.gitlab.io/"}},
               curState == 3 ? online : 0, curState == 3 ? online : 0);
         }

@@ -145,6 +145,11 @@ void ServerSideNetworkHandler::onReady_ClientGeneration(const RakNet::RakNetGUID
 				PlayerArmorEquipmentPacket(v9).write(&stream);
 				this->rakPeer->Send(&stream, PacketPriority::HIGH_PRIORITY, PacketReliability::RELIABLE_ORDERED, 0, RakNet::AddressOrGUID(a2), 0, 0);
 			}
+			if(v9->isSneaking()) {
+				stream.Reset();
+				AnimatePacket(v9->entityId, 4).write(&stream);
+				this->rakPeer->Send(&stream, PacketPriority::HIGH_PRIORITY, PacketReliability::RELIABLE_ORDERED, 0, RakNet::AddressOrGUID(a2), 0, 0);
+			}
 		}
 
 		this->level->addEntity(p);
@@ -452,34 +457,22 @@ void ServerSideNetworkHandler::handle(const RakNet::RakNetGUID& a2, struct Playe
 	if(this->level) {
 		Player* p = this->getPlayer(a2);
 		if(p && !(this->rakPeer->GetMyGUID() == p->rakNetGUID)) {
-			int32_t linkedCount = p->inventory->getLinkedSlotsCount();
-			int32_t containerSize = p->inventory->getContainerSize();
-			int32_t slot = a3->slot;
-			if(p->abilities.instabuild) {
-				if(slot < linkedCount || slot >= containerSize) {
-					slot = linkedCount;
-				}
-				if(slot >= linkedCount && slot < containerSize) {
-					if(a3->itemID) {
-						ItemInstance v9(a3->itemID, 200, a3->itemMeta);
-						p->inventory->replaceSlot(slot, &v9);
-					} else {
-						p->inventory->clearSlot(slot);
-					}
-				}
-			}
-			ItemInstance* v7 = p->inventory->getItem(slot);
-			if(!v7 || !ItemInstance::isItem(v7)) {
-				a3->itemMeta = 0;
-				a3->itemID = 0;
-			}
-			if(slot >= 0 && a3->itemID) {
-				if(slot >= linkedCount) {
-					p->inventory->moveToSelectedSlot(slot);
+			a3->eid = p->entityId;
+			if(a3->itemID) {
+				ItemInstance v9(a3->itemID, 63, a3->itemMeta);
+				if(ItemInstance::isItem(&v9) || v9.tileClass) {
+					p->inventory->replaceSlot(9, &v9);
+					p->inventory->selectSlot(0);
+					p->inventory->linkSlot(0, 9);
 				} else {
-					p->inventory->selectSlot(slot);
+					a3->itemID = 0;
+					a3->itemMeta = 0;
+					p->inventory->clearSlot(9);
+					p->inventory->unlinkSlot(p->inventory->selectedSlot);
 				}
 			} else {
+				a3->itemMeta = 0;
+				p->inventory->clearSlot(9);
 				p->inventory->unlinkSlot(p->inventory->selectedSlot);
 			}
 			this->redistributePacket(a3, a2);
@@ -657,19 +650,53 @@ void ServerSideNetworkHandler::handle(const RakNet::RakNetGUID& a2, struct Conta
 				int32_t v7 = 0;
 				while(v7 < a3->field_1C.size() && v7 < p->inventory->getLinkedSlotsCount()) {
 					p->inventory->linkedSlots[v7].field_0 = a3->field_1C[v7];
+					++v7;
 				}
 			}
 		}
 	}
 }
+struct PendingSrvAnimEquip {
+	uint8_t b0, b1, b2, b3;
+};
+static std::map<int32_t, PendingSrvAnimEquip> s_serverAnimEquip;
+
 void ServerSideNetworkHandler::handle(const RakNet::RakNetGUID& a2, struct AnimatePacket* a3) {
 	if(this->level) {
 		Player* player = this->getPlayer(a2);
 		if(player) {
 			if(player != this->minecraft->player) {
 				a3->eid = player->entityId;
-				if(a3->action == 1) {
+				int32_t action = (uint8_t)a3->action;
+				if(action == 1) {
 					player->swing();
+				} else if(action == 4) {
+					player->setSneaking(1);
+				} else if(action == 5) {
+					player->setSneaking(0);
+				} else if((action & 0xF0) >= 0x80 && (action & 0xF0) <= 0xC0) {
+					PendingSrvAnimEquip& st = s_serverAnimEquip[player->entityId];
+					int32_t hi = action & 0xF0;
+					uint8_t nib = (uint8_t)(action & 0x0F);
+					if(hi == 0x80) st.b0 = nib;
+					else if(hi == 0x90) st.b1 = nib;
+					else if(hi == 0xA0) st.b2 = nib;
+					else if(hi == 0xB0) st.b3 = nib;
+					else if(hi == 0xC0) {
+						int32_t itemID = (st.b0 & 0x0F) | ((st.b1 & 0x0F) << 4) | ((st.b2 & 0x03) << 8);
+						int32_t itemMeta = ((st.b2 >> 2) & 0x03) | ((st.b3 & 0x0F) << 2) | ((nib & 0x0F) << 6);
+						if(itemID > 0) {
+							ItemInstance v8(itemID, 63, itemMeta);
+							if(ItemInstance::isItem(&v8) || v8.tileClass) {
+								player->inventory->replaceSlot(9, &v8);
+								player->inventory->selectSlot(0);
+								player->inventory->linkSlot(0, 9);
+							}
+						} else {
+							player->inventory->clearSlot(9);
+							player->inventory->unlinkSlot(player->inventory->selectedSlot);
+						}
+					}
 				}
 				this->redistributePacket(a3, a2);
 			}

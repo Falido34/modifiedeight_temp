@@ -552,7 +552,7 @@ int32_t JavaIdMap::javaItemToM8(int32_t javaItemId) {
 		return id;
 	}
 
-	if(m8HasItem(javaItemId) && m8ItemRegistered(javaItemId)) return javaItemId;
+	if(m8ItemRegistered(javaItemId)) return javaItemId;
 
 	int32_t sub = javaItemFallback(javaItemId);
 	if(m8ItemRegistered(sub)) return sub;
@@ -569,14 +569,28 @@ int32_t JavaIdMap::m8ItemToJava(int32_t m8ItemId) {
 	}
 
 	switch(m8ItemId) {
-		case 456: return 280; // camera         -> stick
-		case 457: return 391; // beetroot       -> carrot
-		case 458: return 361; // beetroot seeds -> pumpkin seeds
-		case 459: return 282; // beetroot soup  -> mushroom stew
-		case 460: return 427; // door_spruce
-		case 461: return 428; // door_birch
-		case 383: return 383; // spawn egg
-		default:  return m8ItemId <= 406 ? m8ItemId : 0;
+		case 333: return 333;
+		case 346: return 346;
+		case 349: return 349;
+		case 350: return 350;
+		case 383: return 383;
+		case 389: return 389;
+		case 390: return 390;
+		case 416: return 416;
+		case 428: return 429;
+		case 429: return 265;
+		case 430: return 330;
+		case 456: return 280;
+		case 457: return 391;
+		case 458: return 361;
+		case 459: return 282;
+		case 460: return 427;
+		case 461: return 428;
+		case 462: return 349;
+		case 463: return 350;
+		case 464: return 349;
+		case 466: return 260;
+		default:  return m8ItemId <= 406 ? m8ItemId : 280;
 	}
 }
 
@@ -644,11 +658,11 @@ int32_t JavaIdMap::javaMobToM8(int32_t javaType) {
 
 int32_t JavaIdMap::javaObjectToM8(int32_t javaObjectType) {
 	switch(javaObjectType) {
-		case 1:  return 40; // boat
-		case 2:  return 64; // dropped item
-		case 10: return 84; // minecart
-		case 40: return 40; // boat
-		case 41: return 40; // boat
+		case 1:  return 41;
+		case 2:  return 64;
+		case 10: return 84;
+		case 40: return 41;
+		case 41: return 41;
 		case 50: return 65; // primed tnt
 		case 51: return 0;  // ender crystal
 		case 60: return 80; // arrow

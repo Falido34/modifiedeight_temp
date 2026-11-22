@@ -789,12 +789,16 @@ void JavaSession::handlePlayPacket(JavaByteBuf* in, int32_t id) {
 			Player* p = (Player*)e;
 			if(p->inventory) {
 				if(itemId > 0) {
-					ItemInstance ii(JavaIdMap::javaItemToM8(itemId), count > 0 ? count : 1, damage);
+					int32_t m8Id = JavaIdMap::javaItemToM8(itemId);
+					int32_t m8Meta = (itemId == 383) ? JavaIdMap::javaMobToM8(damage) : damage;
+					ItemInstance ii(m8Id, count > 0 ? count : 1, m8Meta);
 					p->inventory->replaceSlot(9, &ii);
+					p->inventory->selectSlot(0);
+					p->inventory->linkSlot(0, 9);
 				} else {
 					p->inventory->clearSlot(9);
+					p->inventory->unlinkSlot(p->inventory->selectedSlot);
 				}
-				p->inventory->moveToSelectedSlot(9);
 			}
 		}
 		return;
@@ -1962,10 +1966,12 @@ void JavaSession::spawnPlayer(JavaByteBuf* in) {
 		if(heldItem > 0) {
 			ItemInstance ii(JavaIdMap::javaItemToM8(heldItem), 1, 0);
 			p->inventory->replaceSlot(9, &ii);
+			p->inventory->selectSlot(0);
+			p->inventory->linkSlot(0, 9);
 		} else {
 			p->inventory->clearSlot(9);
+			p->inventory->unlinkSlot(p->inventory->selectedSlot);
 		}
-		p->inventory->moveToSelectedSlot(9);
 	}
 	this->attachEntity(eid, p);
 	this->knownEntities[eid] = 1;

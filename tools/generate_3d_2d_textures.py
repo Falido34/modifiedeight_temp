@@ -35,7 +35,7 @@ MOB_HEAD_SPECS = {
         "hat_uv": (40, 8, 48, 16),
         "boxes": [
             ((-4, -4, -4), (8, 8, 8), (0, 0)),
-            ((-4.5, -4.5, -4.5), (9, 9, 9), (32, 0)),
+            ((-4.5, -4.5, -4.5), (9, 9, 9), (32, 0), (8, 8, 8), 1),
         ],
     },
     "head_creeper": {
@@ -69,7 +69,7 @@ MOB_HEAD_SPECS = {
         "hat_uv": (40, 8, 48, 16),
         "boxes": [
             ((-4, -4, -4), (8, 8, 8), (0, 0)),
-            ((-4.5, -4.5, -4.5), (9, 9, 9), (32, 0)),
+            ((-4.5, -4.5, -4.5), (9, 9, 9), (32, 0), (8, 8, 8), 1),
         ],
     },
     "head_slime": {
@@ -78,7 +78,7 @@ MOB_HEAD_SPECS = {
         "face_uv": (8, 8, 16, 16),
         "boxes": [
             ((-3, -3, -3), (6, 6, 6), (0, 16)),
-            ((-4, -4, -4), (8, 8, 8), (0, 0)),
+            ((-4, -4, -4), (8, 8, 8), (0, 0), None, 1),
         ],
     },
     "head_cow": {
@@ -122,7 +122,7 @@ MOB_HEAD_SPECS = {
         "face_uv": (8, 8, 16, 18),
         "boxes": [
             ((-4, -5, -4), (8, 10, 8), (0, 0)),
-            ((-1, 1.5, -6), (2, 4, 2), (24, 0)),
+            ((-1, 2, -6), (2, 4, 2), (24, 0), None, 1),
         ],
     },
     "head_ocelot": {
@@ -182,7 +182,6 @@ GREEN_TINT = (124, 189, 107)
 
 CATALOG: Dict[str, dict] = {
     "glowstone_ore": {"kind": "block", "shape": "cube", "faces": {"all": "glowstone_ore"}, "item_icon": "glowstone_ore"},
-    "glowstone_ore_slab": {"kind": "block", "shape": "slab", "faces": {"all": "glowstone_ore"}},
     "copper_ore": {"kind": "block", "shape": "cube", "faces": {"all": "copper_ore"}},
     "copper_block": {"kind": "block", "shape": "cube", "faces": {"all": "copper_block"}},
     "copper_bulb": {"kind": "block", "shape": "cube", "faces": {"all": "copper_bulb"}},
@@ -315,6 +314,16 @@ CATALOG: Dict[str, dict] = {
 
 for _hname in MOB_HEAD_SPECS:
     CATALOG[_hname] = {"kind": "head", "shape": "mob_head", "head_key": _hname}
+
+BED_KEYS = [
+    "bed",
+    "bed_white", "bed_orange", "bed_magenta", "bed_light_blue",
+    "bed_yellow", "bed_lime", "bed_pink", "bed_gray",
+    "bed_silver", "bed_cyan", "bed_purple", "bed_blue",
+    "bed_brown", "bed_green", "bed_red", "bed_black",
+]
+for _bkey in BED_KEYS:
+    CATALOG[_bkey] = {"kind": "block", "shape": "bed", "bed_key": _bkey, "item_icon": _bkey}
 
 
 class AssetLoader:
@@ -632,7 +641,7 @@ def _render_faces_iso(
     mid_x = 0.5 * (min(xs) + max(xs))
     mid_y = 0.5 * (min(ys) + max(ys))
 
-    raw_proj.sort(key=lambda item: item[0])
+    raw_proj.sort(key=lambda item: (item[1].get("layer", 0), item[0]))
     canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     for _, f, pts2 in raw_proj:
         screen_pts = [((p[0] - mid_x) * scale + size * 0.5, (p[1] - mid_y) * scale + size * 0.5) for p in pts2]
@@ -644,6 +653,51 @@ def render_3d_block(loader: AssetLoader, spec: dict, size: int) -> Optional[Imag
     shape = spec["shape"]
     if shape == "mob_head":
         return render_3d_mob_head(loader, spec["head_key"], size)
+
+    if shape == "bed":
+        bkey = spec.get("bed_key", "bed")
+        t_foot_top = loader.load_block(bkey)
+        t_foot_end = loader.load_block(f"{bkey}_1")
+        t_foot_side = loader.load_block(f"{bkey}_2")
+        t_head_top = loader.load_block(f"{bkey}_3")
+        t_head_end = loader.load_block(f"{bkey}_4")
+        t_head_side = loader.load_block(f"{bkey}_5")
+        if not all((t_foot_top, t_foot_end, t_foot_side, t_head_top, t_head_end, t_head_side)):
+            return None
+
+        def _clean_alpha(im: Image.Image) -> Image.Image:
+            out = im.convert("RGBA").copy()
+            px = out.load()
+            for yy in range(out.height):
+                for xx in range(out.width):
+                    r, g, b, a = px[xx, yy]
+                    px[xx, yy] = (r, g, b, 255 if a >= 128 else 0)
+            return out
+
+        t_foot_end = _clean_alpha(t_foot_end)
+        t_foot_side = _clean_alpha(t_foot_side)
+        t_head_end = _clean_alpha(t_head_end)
+        t_head_side = _clean_alpha(t_head_side)
+        t_head_top_rot = t_head_top.transpose(Image.Transpose.ROTATE_90)
+        t_foot_top_rot = t_foot_top.transpose(Image.Transpose.ROTATE_90)
+        w, h = float(t_foot_side.width), float(t_foot_side.height)
+        v_top = h * (7.0 / 16.0)
+        y0 = -0.5
+        y1 = -0.5 + (9.0 / 16.0)
+        faces = []
+        faces.extend(_box_faces(-0.5, y0, -1.0, 0.5, y1, 0.0, {
+            "top": (t_head_top_rot, None, 1.0),
+            "back": (t_head_end, (0.0, v_top, w, h), 0.70),
+            "left": (t_head_side, (w, v_top, 0.0, h), 0.75),
+            "right": (t_head_side, (0.0, v_top, w, h), 0.65),
+        }))
+        faces.extend(_box_faces(-0.5, y0, 0.0, 0.5, y1, 1.0, {
+            "top": (t_foot_top_rot, None, 1.0),
+            "front": (t_foot_end, (0.0, v_top, w, h), 0.80),
+            "left": (t_foot_side, (w, v_top, 0.0, h), 0.75),
+            "right": (t_foot_side, (0.0, v_top, w, h), 0.65),
+        }))
+        return _render_faces_iso(faces, size, yaw_deg=45.0, pitch_deg=35.0, scale_mul=0.82)
 
     faces_spec = spec.get("faces", {})
     tint = spec.get("tint")
@@ -815,20 +869,23 @@ def _cube_box_faces(
     origin: Tuple[float, float, float],
     dims: Tuple[float, float, float],
     uv_off: Tuple[int, int],
+    uv_dims: Optional[Tuple[float, float, float]] = None,
+    layer: int = 0,
 ) -> List[dict]:
     ox, oy, oz = origin
     w, h, d = dims
+    uw, uh, ud = uv_dims if uv_dims is not None else dims
     u, v = uv_off
     x0, x1 = ox, ox + w
     y0, y1 = oy, oy + h
     z0, z1 = oz, oz + d
     return [
-        {"pts": [(x1, y0, z1), (x0, y0, z1), (x0, y0, z0), (x1, y0, z0)], "norm": (0, -1, 0), "tex": tex, "uv": (u + d, v, u + d + w, v + d), "shade": 1.0},
-        {"pts": [(x1, y1, z0), (x0, y1, z0), (x0, y1, z1), (x1, y1, z1)], "norm": (0, 1, 0), "tex": tex, "uv": (u + d + w, v + d, u + d + 2 * w, v), "shade": 0.55},
-        {"pts": [(x1, y0, z0), (x0, y0, z0), (x0, y1, z0), (x1, y1, z0)], "norm": (0, 0, -1), "tex": tex, "uv": (u + d, v + d, u + d + w, v + d + h), "shade": 0.92},
-        {"pts": [(x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)], "norm": (0, 0, 1), "tex": tex, "uv": (u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h), "shade": 0.65},
-        {"pts": [(x1, y0, z1), (x1, y0, z0), (x1, y1, z0), (x1, y1, z1)], "norm": (1, 0, 0), "tex": tex, "uv": (u, v + d, u + d, v + d + h), "shade": 0.72},
-        {"pts": [(x0, y0, z0), (x0, y0, z1), (x0, y1, z1), (x0, y1, z0)], "norm": (-1, 0, 0), "tex": tex, "uv": (u + d + w, v + d, u + 2 * d + w, v + d + h), "shade": 0.80},
+        {"pts": [(x1, y0, z1), (x0, y0, z1), (x0, y0, z0), (x1, y0, z0)], "norm": (0, -1, 0), "tex": tex, "uv": (u + ud, v, u + ud + uw, v + ud), "shade": 1.0, "layer": layer},
+        {"pts": [(x1, y1, z0), (x0, y1, z0), (x0, y1, z1), (x1, y1, z1)], "norm": (0, 1, 0), "tex": tex, "uv": (u + ud + uw, v + ud, u + ud + 2 * uw, v), "shade": 0.55, "layer": layer},
+        {"pts": [(x1, y0, z0), (x0, y0, z0), (x0, y1, z0), (x1, y1, z0)], "norm": (0, 0, -1), "tex": tex, "uv": (u + ud, v + ud, u + ud + uw, v + ud + uh), "shade": 0.92, "layer": layer},
+        {"pts": [(x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1)], "norm": (0, 0, 1), "tex": tex, "uv": (u + 2 * ud + uw, v + ud, u + 2 * ud + 2 * uw, v + ud + uh), "shade": 0.65, "layer": layer},
+        {"pts": [(x1, y0, z1), (x1, y0, z0), (x1, y1, z0), (x1, y1, z1)], "norm": (1, 0, 0), "tex": tex, "uv": (u, v + ud, u + ud, v + ud + uh), "shade": 0.72, "layer": layer},
+        {"pts": [(x0, y0, z0), (x0, y0, z1), (x0, y1, z1), (x0, y1, z0)], "norm": (-1, 0, 0), "tex": tex, "uv": (u + ud + uw, v + ud, u + 2 * ud + uw, v + ud + uh), "shade": 0.80, "layer": layer},
     ]
 
 
@@ -840,8 +897,11 @@ def render_3d_mob_head(loader: AssetLoader, head_key: str, size: int) -> Optiona
     if skin is None:
         return None
     faces: List[dict] = []
-    for origin, dims, uv_off in spec["boxes"]:
-        faces.extend(_cube_box_faces(skin, origin, dims, uv_off))
+    for box in spec["boxes"]:
+        origin, dims, uv_off = box[0], box[1], box[2]
+        uv_dims = box[3] if len(box) > 3 else None
+        layer = box[4] if len(box) > 4 else 0
+        faces.extend(_cube_box_faces(skin, origin, dims, uv_off, uv_dims=uv_dims, layer=layer))
     return _render_faces_iso(faces, size, yaw_deg=145.0, pitch_deg=25.0, scale_mul=0.68, flip_y=True, cull_backfaces=True)
 
 
@@ -1038,7 +1098,7 @@ SKIP_DISCOVER_EXACT = {
     "potion_overlay",
     "redstone_dust_cross_overlay",
     "redstone_dust_line_overlay",
-}
+} | {f"{_bk}_{_i}" for _bk in BED_KEYS for _i in range(1, 6)}
 
 
 def _infer_block_spec(key: str) -> dict:

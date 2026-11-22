@@ -28,7 +28,7 @@ bool_t ArmorStandItem::useOn(ItemInstance* item, Player* player, Level* level, i
 	stand->prevYaw = player->yaw + 180.0f;
 	level->addEntity(stand);
 
-	if (player->inventory && player->inventory->field_20 == 0) {
+	if (!player->abilities.instabuild && (!player->inventory || player->inventory->field_20 == 0)) {
 		item->count--;
 	}
 	level->playSound(stand, "dig.wood", 1.0f, 1.0f);

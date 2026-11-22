@@ -4,6 +4,7 @@
 struct Animal: AgableMob
 {
 	int32_t inLove;
+	int32_t fedControlTicks;
 	int32_t familyParentId;
 	int32_t familyCoParentId;
 	int32_t familyRepathTicks;
@@ -30,6 +31,12 @@ struct Animal: AgableMob
 	virtual void addAdditonalSaveData(CompoundTag*);
 	virtual int32_t getAmbientSoundInterval();
 	virtual void aiStep();
+	virtual void newServerAiStep();
+	virtual void positionRider(bool_t);
+	virtual void travel(float, float);
+	virtual bool_t hasSaddle();
+	virtual void setSaddle(bool_t);
+	virtual bool_t isSaddleable();
 	virtual bool_t canSpawn();
 	virtual bool_t removeWhenFarAway();
 	virtual float getWalkTargetValue(int32_t, int32_t, int32_t);

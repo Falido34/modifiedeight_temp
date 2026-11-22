@@ -17,8 +17,6 @@ void SignRenderer::render(TileEntity* tee, float x, float y, float z, float a6, 
 	int32_t v14; // r0
 	float v15;	 // r8
 	Font* font;	 // r5
-	int32_t v17; // r8
-	int32_t v18; // r9
 	float v19;	 // s17
 	int32_t v20; // r6
 	int32_t v21; // r10
@@ -60,20 +58,31 @@ void SignRenderer::render(TileEntity* tee, float x, float y, float z, float a6, 
 	this->model.render();
 	glPopMatrix();
 	font = this->getFont();
-	glTranslatef(0.0, 0.33333, 0.046667);
-	glScalef(0.011111, -0.011111, 0.011111);
-	glEnable(0xBE2u);
-	glEnableClientState(0x8076u);
+	glTranslatef(0.0f, 0.33333f, 0.055f);
+	glScalef(0.011111f, -0.011111f, 0.011111f);
+	GLboolean cullWasEnabled = glIsEnabled(GL_CULL_FACE);
+	GLboolean lightingWasEnabled = glIsEnabled(GL_LIGHTING);
+	GLboolean alphaTestWasEnabled = glIsEnabled(GL_ALPHA_TEST);
+	GLboolean blendWasEnabled = glIsEnabled(GL_BLEND);
+	GLboolean vertWasEnabled = glIsEnabled(GL_VERTEX_ARRAY);
+	GLboolean texCoordWasEnabled = glIsEnabled(GL_TEXTURE_COORD_ARRAY);
+	GLboolean colorWasEnabled = glIsEnabled(GL_COLOR_ARRAY);
+	GLboolean normalWasEnabled = glIsEnabled(GL_NORMAL_ARRAY);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_ALPHA_TEST);
+	glDisableClientState(GL_NORMAL_ARRAY);
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(-8.0f, -8.0f);
+	glDepthFunc(GL_LEQUAL);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	glEnableClientState(GL_COLOR_ARRAY);
 	glDepthMask(0);
-	if(a7) {
-		v17 = 32885;
-		glDisable(0xB50u);
-		glDisableClientState(0x8075u);
-		v18 = 0xB50;
-	} else {
-		v17 = 0;
-		v18 = 0;
-	}
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	v19 = -20.0;
 	v20 = 0;
 	static const uint32_t DYE_COLORS[16] = {
@@ -96,7 +105,7 @@ void SignRenderer::render(TileEntity* tee, float x, float y, float z, float a6, 
 	};
 	v21 = DYE_COLORS[te->textColor & 15];
 	do {
-		font->field_4 = 0;
+		font->field_4 = 1;
 		if(v20 == te->field_6C) {
 			std::string a2 = "> " + te->textLines[v20] + " <";
 			v26 = font->width(a2);
@@ -108,14 +117,32 @@ void SignRenderer::render(TileEntity* tee, float x, float y, float z, float a6, 
 		++v20;
 		v19 = v19 + 10.0;
 	} while(v20 != 4);
-	if(v17) {
-		glEnableClientState(v17);
-	}
-	if(v18) {
-		glEnable(v18);
-	}
+	glDisable(GL_POLYGON_OFFSET_FILL);
 	glDepthMask(1u);
-	glDisableClientState(0x8076u);
-	glDisable(0xBE2u);
+	if(normalWasEnabled) {
+		glEnableClientState(GL_NORMAL_ARRAY);
+	}
+	if(!colorWasEnabled) {
+		glDisableClientState(GL_COLOR_ARRAY);
+	}
+	if(!texCoordWasEnabled) {
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	}
+	if(!vertWasEnabled) {
+		glDisableClientState(GL_VERTEX_ARRAY);
+	}
+	if(!blendWasEnabled) {
+		glDisable(GL_BLEND);
+	}
+	if(alphaTestWasEnabled) {
+		glEnable(GL_ALPHA_TEST);
+	}
+	if(lightingWasEnabled) {
+		glEnable(GL_LIGHTING);
+	}
+	if(cullWasEnabled) {
+		glEnable(GL_CULL_FACE);
+	}
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 	glPopMatrix();
 }

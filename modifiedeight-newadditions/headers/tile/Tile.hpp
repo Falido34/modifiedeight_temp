@@ -99,8 +99,6 @@ struct Tile{
 	static Tile* gravelSlabHalf;
 	static Tile* glowLampSlab;
 	static Tile* glowLampSlabHalf;
-	static Tile* glowOreSlab;
-	static Tile* glowOreSlabHalf;
 	static Tile* redstoneLampSlab;
 	static Tile* redstoneLampSlabHalf;
 	static Tile* redstoneLampSlabOn;
@@ -188,7 +186,7 @@ struct Tile{
 	static Tile* slimeBlock;
 	static Tile* sweetBerryBush;
 	static Tile* glowstoneOre;
-	static Tile* musicPlayer;
+	static Tile* jukebox;
 	static Tile* glowingObsidian;
 	static Tile* netherReactor;
 	static Tile* info_updateGame1;

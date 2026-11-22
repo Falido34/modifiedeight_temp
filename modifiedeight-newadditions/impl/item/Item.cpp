@@ -314,7 +314,7 @@ void Item::initItems(std::shared_ptr<TextureAtlas> a2){
 	Item::clownfish = (new FoodItem(208, 1, 0.2f, 0))->setIcon("clownfish", 0)->setCategory(4, 4)->setDescriptionId("clownfish");
 	Item::sweetBerries = (new SweetBerriesItem(210, 2, 0.2f, 0))->setIcon("sweet_berries", 0)->setCategory(4, 4)->setDescriptionId("sweetBerries");
 	if (Tile::sweetBerryBush && !Item::items[Tile::sweetBerryBush->blockID]) new TileItem(Tile::sweetBerryBush->blockID - 256);
-	if (Tile::musicPlayer && !Item::items[Tile::musicPlayer->blockID]) new TileItem(Tile::musicPlayer->blockID - 256);
+	if (Tile::jukebox && !Item::items[Tile::jukebox->blockID]) new TileItem(Tile::jukebox->blockID - 256);
 	if (Tile::slimeBlock && !Item::items[Tile::slimeBlock->blockID]) new TileItem(Tile::slimeBlock->blockID - 256);
 	if (Tile::chest) {
 		if (Item::items[Tile::chest->blockID]) {

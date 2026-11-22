@@ -340,17 +340,12 @@ void LocalPlayer::tick() {
     }
     ItemInstance *sel = this->inventory->getSelected();
     int32_t auxv, id;
-    if (sel) {
-      if (sel->count <= 0) {
-        id = 0;
-      } else {
-        id = sel->getId();
+    if (sel && !sel->isNull() && sel->count > 0) {
+      id = sel->getId();
+      if (id <= 0 && sel->tileClass) {
+        id = sel->tileClass->blockID;
       }
-      if (sel->count > 0) {
-        auxv = sel->getAuxValue();
-      } else {
-        auxv = 0;
-      }
+      auxv = sel->getAuxValue();
     } else {
       id = 0;
       auxv = 0;
@@ -363,6 +358,16 @@ void LocalPlayer::tick() {
           this->inventory->getLinkedSlot(this->inventory->selectedSlot);
       PlayerEquipmentPacket v23(this->entityId, id, auxv, ls);
       this->minecraft->rakNetInstance->send(v23);
+      uint8_t eqBytes[5] = {
+          (uint8_t)(0x80 | (id & 0x0F)),
+          (uint8_t)(0x90 | ((id >> 4) & 0x0F)),
+          (uint8_t)(0xA0 | (((id >> 8) & 0x03) | ((auxv & 0x03) << 2))),
+          (uint8_t)(0xB0 | ((auxv >> 2) & 0x0F)),
+          (uint8_t)(0xC0 | ((auxv >> 6) & 0x0F))};
+      for (int eqStep = 0; eqStep < 5; ++eqStep) {
+        AnimatePacket eqPk(this->entityId, (int32_t)eqBytes[eqStep]);
+        this->minecraft->rakNetInstance->send(eqPk);
+      }
     }
   }
   this->updateArmorTypeHash();

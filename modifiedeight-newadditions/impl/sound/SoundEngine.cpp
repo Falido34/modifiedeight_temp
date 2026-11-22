@@ -1,6 +1,6 @@
 #include <sound/SoundEngine.hpp>
 #include <sound/MusicEngine.hpp>
-#include <sound/MusicPlayerManager.hpp>
+#include <sound/JukeboxManager.hpp>
 #include <Options.hpp>
 #include <entity/Mob.hpp>
 #include <math.h>

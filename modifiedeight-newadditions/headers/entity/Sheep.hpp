@@ -17,6 +17,9 @@ struct Sheep: Animal
 	void setSheared(bool_t);
 
 	virtual ~Sheep();
+	virtual bool_t hasSaddle();
+	virtual void setSaddle(bool_t);
+	virtual bool_t isSaddleable();
 	virtual bool_t interactWithPlayer(Player*);
 	virtual void handleEntityEvent(int8_t);
 	virtual int32_t getEntityTypeId() const;

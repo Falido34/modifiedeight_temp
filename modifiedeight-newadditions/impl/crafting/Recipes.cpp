@@ -182,6 +182,26 @@ Recipes::Recipes() {
 	if (Tile::enderChest && Tile::obsidian && Item::emerald) {
 		this->addShapedRecipe(ItemInstance(Tile::enderChest, 1), "###", "#D#", "###", definition<Tile*, Item*>('#', Tile::obsidian, 'D', Item::emerald));
 	}
+	if (Item::armorStand && Item::stick) {
+		if (Tile::stoneSlabHalf) {
+			this->addShapedRecipe(ItemInstance(Item::armorStand, 1), "###", " # ", "#S#", definition<Item*, ItemInstance>('#', Item::stick, 'S', ItemInstance(Tile::stoneSlabHalf, 1, 0)));
+		}
+		if (Tile::rock) {
+			this->addShapedRecipe(ItemInstance(Item::armorStand, 1), "###", " # ", "#S#", definition<Item*, Tile*>('#', Item::stick, 'S', Tile::rock));
+		}
+	}
+	if (Tile::copperBulb && Tile::copperBlock && Tile::glass && Item::redStone) {
+		this->addShapedRecipe(ItemInstance(Tile::copperBulb, 4), " C ", "CGC", " R ", definition<Tile*, Tile*, Item*>('C', Tile::copperBlock, 'G', Tile::glass, 'R', Item::redStone));
+	}
+	if (Item::itemFrame && Item::stick && Item::leather) {
+		this->addShapedRecipe(ItemInstance(Item::itemFrame, 1), "###", "#X#", "###", definition<Item*, Item*>('#', Item::stick, 'X', Item::leather));
+	}
+	if (Tile::jukebox && Tile::wood && Item::emerald) {
+		this->addShapedRecipe(ItemInstance(Tile::jukebox, 1), "###", "#D#", "###", definition<Tile*, Item*>('#', Tile::wood, 'D', Item::emerald));
+	}
+	if (Item::saddle && Item::leather && Item::string) {
+		this->addShapedRecipe(ItemInstance(Item::saddle, 1), "LLL", "L L", " S ", definition<Item*, Item*>('L', Item::leather, 'S', Item::string));
+	}
 	this->addShapedRecipe(ItemInstance(Tile::fence_spruce, 3), "#X#", "#X#", definition<Item*, ItemInstance>('#', Item::stick, 'X', ItemInstance(Tile::wood, 1, 1)));
 	this->addShapedRecipe(ItemInstance(Tile::fence_birch, 3), "#X#", "#X#", definition<Item*, ItemInstance>('#', Item::stick, 'X', ItemInstance(Tile::wood, 1, 2)));
 	this->addShapedRecipe(ItemInstance(Item::sign, 1), "###", "###", " X ", definition<Tile*, Item*>('#', Tile::wood, 'X', Item::stick) /*inlined*/);

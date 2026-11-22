@@ -4,14 +4,21 @@
 #include <string>
 
 struct Player;
+struct NinePatchLayer;
 
-struct MusicPlayerScreen : Screen {
+struct JukeboxScreen : Screen {
 	int32_t blockX, blockY, blockZ;
 	int32_t scrollOffset;
 	int32_t dialogX, dialogY, dialogW, dialogH;
+	NinePatchLayer* bgPanel;
+	NinePatchLayer* insetPanel;
+	NinePatchLayer* btnNormal;
+	NinePatchLayer* btnPressed;
+	NinePatchLayer* slotNormal;
+	NinePatchLayer* slotSelected;
 
-	MusicPlayerScreen(int32_t x, int32_t y, int32_t z);
-	virtual ~MusicPlayerScreen();
+	JukeboxScreen(int32_t x, int32_t y, int32_t z);
+	virtual ~JukeboxScreen();
 	virtual void init();
 	virtual void render(int32_t mx, int32_t my, float a4);
 	virtual void tick();

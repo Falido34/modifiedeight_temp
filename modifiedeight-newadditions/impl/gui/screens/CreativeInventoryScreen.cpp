@@ -262,7 +262,7 @@ void CreativeInventoryScreen::populateFilteredItems(bool isServer) {
   addTabItem(7, Tile::stonecutterBench);
   addTabItem(7, Tile::chest);
   addTabItem(7, Tile::enderChest);
-  addTabItem(7, Tile::musicPlayer);
+  addTabItem(7, Tile::jukebox);
   addTabItem(7, Tile::torch);
   addTabItem(7, Tile::lightGem);
   addTabItem(7, Tile::glass);
@@ -406,6 +406,7 @@ void CreativeInventoryScreen::populateFilteredItems(bool isServer) {
   addTabItem(4, Item::emerald);
   addTabItem(4, Item::netherQuartz);
   addTabItem(4, Item::yellowDust);
+  addTabItem(4, Item::redStone);
   addTabItem(4, Item::stick);
   addTabItem(4, Item::flint);
   addTabItem(4, Item::clay);

@@ -1,4 +1,4 @@
-#include <sound/MusicPlayerManager.hpp>
+#include <sound/JukeboxManager.hpp>
 #include <sound/MusicEngine.hpp>
 #include <Minecraft.hpp>
 #include <entity/Player.hpp>
@@ -13,16 +13,16 @@
 
 #include <dirent.h>
 
-MusicPlayerManager MusicPlayerManager::instance;
+JukeboxManager JukeboxManager::instance;
 
-MusicPlayerManager::MusicPlayerManager()
+JukeboxManager::JukeboxManager()
 	: isPlaying(false), isPaused(false), pauseFade(1.0f), isPausing(false), isResuming(false),
 	  currentTrackIndex(-1), blockX(0), blockY(0), blockZ(0),
 	  volumeFade(0.0f), isFadingOut(false), nextTrackIndex(-1), nextX(0), nextY(0), nextZ(0),
 	  playbackMode(PLAYBACK_SEQUENTIAL) {
 }
 
-void MusicPlayerManager::loadTracks() {
+void JukeboxManager::loadTracks() {
 	this->tracks.clear();
 
 	struct EmbeddedTrackInfo {
@@ -134,7 +134,7 @@ void MusicPlayerManager::loadTracks() {
 	}
 }
 
-void MusicPlayerManager::playTrack(int32_t trackIndex, int32_t x, int32_t y, int32_t z) {
+void JukeboxManager::playTrack(int32_t trackIndex, int32_t x, int32_t y, int32_t z) {
 	if (this->tracks.empty()) {
 		this->loadTracks();
 	}
@@ -237,14 +237,14 @@ void MusicPlayerManager::playTrack(int32_t trackIndex, int32_t x, int32_t y, int
 	this->nextTrackIndex = -1;
 }
 
-void MusicPlayerManager::pause() {
+void JukeboxManager::pause() {
 	if (this->isPlaying && !this->isPaused && !this->isPausing) {
 		this->isPausing = true;
 		this->isResuming = false;
 	}
 }
 
-void MusicPlayerManager::resume() {
+void JukeboxManager::resume() {
 	if (this->isPlaying && (this->isPaused || this->isPausing)) {
 		if (MusicEngine::instance) {
 			MusicEngine::instance->resumeStream();
@@ -255,7 +255,7 @@ void MusicPlayerManager::resume() {
 	}
 }
 
-void MusicPlayerManager::togglePause() {
+void JukeboxManager::togglePause() {
 	if (this->isPaused || this->isPausing) {
 		this->resume();
 	} else if (this->isPlaying) {
@@ -263,7 +263,7 @@ void MusicPlayerManager::togglePause() {
 	}
 }
 
-void MusicPlayerManager::stop() {
+void JukeboxManager::stop() {
 	if (this->isPlaying) {
 		this->isFadingOut = true;
 		this->nextTrackIndex = -1;
@@ -273,7 +273,7 @@ void MusicPlayerManager::stop() {
 	}
 }
 
-void MusicPlayerManager::stopAt(int32_t x, int32_t y, int32_t z) {
+void JukeboxManager::stopAt(int32_t x, int32_t y, int32_t z) {
 	for (auto& pj : this->activePlayers) {
 		if (pj.blockX == x && pj.blockY == y && pj.blockZ == z) {
 			pj.isFadingOut = true;
@@ -284,7 +284,7 @@ void MusicPlayerManager::stopAt(int32_t x, int32_t y, int32_t z) {
 	}
 }
 
-void MusicPlayerManager::stopImmediate() {
+void JukeboxManager::stopImmediate() {
 	this->isPlaying = false;
 	this->isPaused = false;
 	this->isPausing = false;
@@ -301,11 +301,11 @@ void MusicPlayerManager::stopImmediate() {
 	}
 }
 
-void MusicPlayerManager::cyclePlaybackMode() {
+void JukeboxManager::cyclePlaybackMode() {
 	this->playbackMode = (this->playbackMode + 1) % 4;
 }
 
-std::string MusicPlayerManager::getPlaybackModeName() const {
+std::string JukeboxManager::getPlaybackModeName() const {
 	switch (this->playbackMode) {
 		case PLAYBACK_SEQUENTIAL: return "Order";
 		case PLAYBACK_SHUFFLE: return "Shuffle";
@@ -315,7 +315,7 @@ std::string MusicPlayerManager::getPlaybackModeName() const {
 	}
 }
 
-void MusicPlayerManager::playNextTrack() {
+void JukeboxManager::playNextTrack() {
 	if (this->tracks.empty()) return;
 	int count = (int)this->tracks.size();
 	int nextIdx = 0;
@@ -335,14 +335,14 @@ void MusicPlayerManager::playNextTrack() {
 	this->playTrack(nextIdx, this->blockX, this->blockY, this->blockZ);
 }
 
-void MusicPlayerManager::playPrevTrack() {
+void JukeboxManager::playPrevTrack() {
 	if (this->tracks.empty()) return;
 	int count = (int)this->tracks.size();
 	int prevIdx = (this->currentTrackIndex - 1 + count) % count;
 	this->playTrack(prevIdx, this->blockX, this->blockY, this->blockZ);
 }
 
-void MusicPlayerManager::onTrackFinished() {
+void JukeboxManager::onTrackFinished() {
 	this->isPlaying = false;
 	this->isPaused = false;
 	this->isPausing = false;
@@ -361,7 +361,7 @@ void MusicPlayerManager::onTrackFinished() {
 	}
 }
 
-bool MusicPlayerManager::isPlayingAt(int32_t x, int32_t y, int32_t z) const {
+bool JukeboxManager::isPlayingAt(int32_t x, int32_t y, int32_t z) const {
 	for (const auto& pj : this->activePlayers) {
 		if (pj.blockX == x && pj.blockY == y && pj.blockZ == z && pj.volumeFade > 0.01f) {
 			return true;
@@ -370,14 +370,14 @@ bool MusicPlayerManager::isPlayingAt(int32_t x, int32_t y, int32_t z) const {
 	return this->isPlaying && this->blockX == x && this->blockY == y && this->blockZ == z;
 }
 
-std::string MusicPlayerManager::getCurrentTrackName() const {
+std::string JukeboxManager::getCurrentTrackName() const {
 	if (this->isPlaying && this->currentTrackIndex >= 0 && this->currentTrackIndex < (int32_t)this->tracks.size()) {
 		return this->tracks[this->currentTrackIndex].name;
 	}
 	return "";
 }
 
-std::string MusicPlayerManager::getTrackNameAt(int32_t x, int32_t y, int32_t z) const {
+std::string JukeboxManager::getTrackNameAt(int32_t x, int32_t y, int32_t z) const {
 	for (const auto& pj : this->activePlayers) {
 		if (pj.blockX == x && pj.blockY == y && pj.blockZ == z && pj.trackIndex >= 0 && pj.trackIndex < (int32_t)this->tracks.size()) {
 			return this->tracks[pj.trackIndex].name;
@@ -386,7 +386,7 @@ std::string MusicPlayerManager::getTrackNameAt(int32_t x, int32_t y, int32_t z) 
 	return this->getCurrentTrackName();
 }
 
-void MusicPlayerManager::update(Minecraft* mc) {
+void JukeboxManager::update(Minecraft* mc) {
 	if (!mc || !mc->player) {
 		return;
 	}
@@ -415,9 +415,9 @@ void MusicPlayerManager::update(Minecraft* mc) {
 
 	for (size_t i = 0; i < this->activePlayers.size();) {
 		auto& pj = this->activePlayers[i];
-		if (mc->level && Tile::musicPlayer) {
+		if (mc->level && Tile::jukebox) {
 			int curTile = mc->level->getTile(pj.blockX, pj.blockY, pj.blockZ);
-			if (curTile != Tile::musicPlayer->blockID) {
+			if (curTile != Tile::jukebox->blockID) {
 				pj.isFadingOut = true;
 			}
 		}

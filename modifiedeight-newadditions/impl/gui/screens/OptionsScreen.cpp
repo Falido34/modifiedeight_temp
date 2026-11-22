@@ -87,9 +87,6 @@ void OptionsScreen::generateOptionScreens(void) {
 	this->optionPanes[3]->createOptionsGroup("options.group.audio")->addOptionItem(&Options::Option::SOUND, this->minecraft)->addOptionItem(&Options::Option::MUSIC, this->minecraft);
 	
 	auto grp = this->optionPanes[4]->createOptionsGroup("options.newadditions");
-#if !defined(ANDROID) && !defined(MCPE_IOS) && !defined(__APPLE__)
-	grp->addOptionItem(&Options::Option::MARKETPLACE, this->minecraft);
-#endif
 	grp->addOptionItem(&Options::Option::SHOW_FPS, this->minecraft);
 	grp->addOptionItem(&Options::Option::DISCORD_RPC, this->minecraft);
 	grp->addOptionItem(&Options::Option::PANORAMA_ANGLE, this->minecraft);
@@ -193,11 +190,31 @@ void OptionsScreen::render(int32_t a2, int32_t a3, float a4) {
 		}
 
 		if (PatchManager::instance().isBuildRunning() && this->font) {
-			this->fill(0, 0, this->width, this->height, 0x88000000);
-			int dw = (this->width - 24 < 280) ? (this->width - 24) : 280;
-			int dh = 68;
+			this->fill(0, 0, this->width, this->height, 0x99000000);
+			int dw = (this->width - 24 < 264) ? (this->width - 24) : 264;
+			int dh = 76;
 			int dx = (this->width - dw) / 2;
 			int dy = (this->height - dh) / 2;
+			int barX0 = dx + 18;
+			int barX1 = dx + dw - 18;
+			int barW = barX1 - barX0;
+			int py = dy + dh - 26;
+			int barH = 12;
+			static float s_dispProg = 0.0f;
+			float targetProg = PatchManager::instance().getBuildProgress();
+			if (targetProg < 0.04f) targetProg = 0.04f;
+			if (targetProg > 1.0f) targetProg = 1.0f;
+			if (targetProg < s_dispProg - 0.25f) s_dispProg = targetProg;
+			if (s_dispProg < targetProg) {
+				s_dispProg += (targetProg - s_dispProg) * 0.14f;
+				if (s_dispProg > targetProg) s_dispProg = targetProg;
+			} else if (s_dispProg < 0.96f) {
+				s_dispProg += 0.0005f;
+			}
+			int fillW = (int)(barW * s_dispProg + 0.5f);
+			if (fillW < 2) fillW = 2;
+			if (fillW > barW) fillW = barW;
+
 			if (!this->minecraft->options.classicGUI) {
 				int32_t colorA, colorB;
 				this->minecraft->options.getNeonColors(colorA, colorB);
@@ -208,19 +225,12 @@ void OptionsScreen::render(int32_t a2, int32_t a3, float a4) {
 				this->fill(dx, dy + dh - 1, dx + dw, dy + dh, colorA);
 				this->fill(dx, dy, dx + 1, dy + dh, colorA);
 				this->fill(dx + dw - 1, dy, dx + dw, dy + dh, colorA);
-				this->fill(dx + 8, dy + 22, dx + dw - 8, dy + 23, (colorB & 0x00FFFFFF) | 0x88000000);
-				// Animated neon activity bar
-				int barX0 = dx + 14;
-				int barX1 = dx + dw - 14;
-				int barW = barX1 - barX0;
-				this->fill(barX0, dy + dh - 13, barX1, dy + dh - 8, 0x88000000);
-				if (barW > 20) {
-					static int animTick = 0;
-					animTick = (animTick + 1) % 120;
-					int segW = barW / 3;
-					int pos = (animTick < 60) ? ((animTick * (barW - segW)) / 60) : (((120 - animTick) * (barW - segW)) / 60);
-					this->fill(barX0 + pos, dy + dh - 13, barX0 + pos + segW, dy + dh - 8, colorB);
-				}
+				this->fill(dx + 8, dy + 20, dx + dw - 8, dy + 21, (colorB & 0x00FFFFFF) | 0x88000000);
+				this->fill(barX0 - 2, py - 2, barX1 + 2, py + barH + 2, 0xAA000000);
+				this->fill(barX0 - 1, py - 1, barX1 + 1, py + barH + 1, (colorA & 0x00FFFFFF) | 0xAA000000);
+				this->fill(barX0, py, barX1, py + barH, 0xFF140820);
+				this->fillGradient(barX0, py, barX0 + fillW, py + barH, colorA, colorB);
+				this->fill(barX0, py, barX0 + fillW, py + 2, 0x55FFFFFF);
 			} else {
 				NinePatchFactory npf(this->minecraft->texturesPtr, "gui/spritesheet.png");
 				NinePatchLayer* dlgBg = npf.createSymmetrical({34, 43, 14, 14}, 3, 3, (float)dw, (float)dh);
@@ -228,19 +238,32 @@ void OptionsScreen::render(int32_t a2, int32_t a3, float a4) {
 					dlgBg->draw(Tesselator::instance, (float)dx, (float)dy);
 					delete dlgBg;
 				}
-				NinePatchLayer* insetBg = npf.createSymmetrical({0, 32, 8, 8}, 2, 2, (float)(dw - 16), 24.0f);
+				NinePatchLayer* insetBg = npf.createSymmetrical({0, 32, 8, 8}, 3, 3, (float)(dw - 14), (float)(dh - 26));
 				if (insetBg) {
-					insetBg->draw(Tesselator::instance, (float)(dx + 8), (float)(dy + 26));
+					insetBg->draw(Tesselator::instance, (float)(dx + 7), (float)(dy + 20));
 					delete insetBg;
 				}
+				this->fill(barX0 - 2, py - 2, barX1 + 2, py + barH + 2, 0xFF141414);
+				this->fill(barX0 - 1, py - 1, barX1 + 1, py + barH + 1, 0xFF3E3E3E);
+				this->fill(barX0, py, barX1, py + barH, 0xFF202020);
+				this->fill(barX0, py, barX0 + fillW, py + barH, 0xFF4CC44C);
+				this->fill(barX0, py, barX0 + fillW, py + 2, 0xFF88FF88);
+				this->fill(barX0, py + barH - 2, barX0 + fillW, py + barH, 0xFF2B8A2B);
+				if (fillW > 2) {
+					this->fill(barX0 + fillW - 1, py, barX0 + fillW, py + barH, 0xFF9EFF9E);
+				}
 			}
-			this->drawCenteredString(this->font, "Applying Patches...", this->width / 2, dy + 9, 0xFFFFFF66);
+			this->drawCenteredString(this->font, "Applying Patches...", this->width / 2, dy + 7, 0xFFFFFFA0);
 			std::string status = PatchManager::instance().getBuildStatus();
-			while (status.size() > 3 && this->font->width(status) > dw - 20) {
+			while (status.size() > 3 && this->font->width(status) > dw - 28) {
 				status.resize(status.size() - 4);
 				status += "...";
 			}
-			this->drawCenteredString(this->font, status, this->width / 2, dy + 33, 0xFFEEEEEE);
+			this->drawCenteredString(this->font, status, this->width / 2, dy + 28, 0xFFE6E6E6);
+			int pct = (int)(s_dispProg * 100.0f + 0.5f);
+			if (pct > 100) pct = 100;
+			std::string pctStr = std::to_string(pct) + "%";
+			this->drawCenteredString(this->font, pctStr, this->width / 2, py + 2, 0xFFFFFFFF);
 		}
 	}
 }

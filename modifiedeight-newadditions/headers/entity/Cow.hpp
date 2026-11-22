@@ -8,6 +8,9 @@ struct Cow: Animal
 	Cow(Level*);
 
 	virtual ~Cow();
+	virtual bool_t hasSaddle();
+	virtual void setSaddle(bool_t);
+	virtual bool_t isSaddleable();
 	virtual void tick();
 	virtual bool_t interactWithPlayer(Player*);
 	virtual int32_t getEntityTypeId() const;

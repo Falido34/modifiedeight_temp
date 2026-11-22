@@ -1,11 +1,15 @@
 #include <Minecraft.hpp>
+#include <NinecraftApp.hpp>
+#include <gui/NinePatchFactory.hpp>
+#include <gui/NinePatchLayer.hpp>
 #include <gui/buttons/ImageWithBackground.hpp>
 #include <gui/screens/InvalidLicenseScreen.hpp>
 #include <gui/screens/OptionsScreen.hpp>
+#include <gui/screens/PatchErrorScreen.hpp>
 #include <gui/screens/PlayScreen.hpp>
-#include <gui/screens/TexturesScreen.hpp>
 #include <gui/screens/Touch_StartMenuScreen.hpp>
 #include <network/mco/MojangConnector.hpp>
+#include <patch/PatchManager.hpp>
 #include <rendering/Font.hpp>
 #include <rendering/Tesselator.hpp>
 #include <rendering/Textures.hpp>
@@ -327,7 +331,7 @@ int32_t Touch::StartMenuScreen::currentSplash = -1;
 
 Touch::StartMenuScreen::StartMenuScreen()
     : playButton(2, "Play", 0), playOnRealmsButton(3, "Play on Realms", 0),
-      marketplaceButton(6, "Texture Packs", 0), buyButton(5) {
+      buyButton(5) {
   this->settingsButtonMaybe = 0;
   this->field_140 = 0;
   this->field_148 = 0;
@@ -372,41 +376,17 @@ void Touch::StartMenuScreen::setupPlayButtons(bool_t a2) {
   this->playButton.posX = v4;
   v5 = height / 2;
 
-  this->marketplaceButton.width = 100;
-  this->marketplaceButton.height = 30;
-  this->marketplaceButton.posX = v4;
-
   this->playOnRealmsButton.width = 100;
   this->playOnRealmsButton.height = 30;
   this->playOnRealmsButton.posX = v4;
 
-  bool_t showTextures = (Options::instance && Options::instance->marketplace);
-#if defined(ANDROID) || defined(__ANDROID__) || defined(MCPE_IOS) || defined(__APPLE__) || defined(TARGET_OS_IPHONE) || defined(IPHONE)
-  showTextures = 0;
-#endif
-  if (showTextures) {
-    if (a2)
-      v6 = v5 - 40;
-    else
-      v6 = v5 - 20;
+  if (a2)
+    v6 = v5 - 15;
+  else
+    v6 = v5 + 10;
 
-    this->playButton.posY = v6;
-    this->marketplaceButton.posY = v6 + 36;
-    this->playOnRealmsButton.posY = v6 + 72;
-    this->marketplaceButton.visible = 1;
-    this->marketplaceButton.active = 1;
-  } else {
-    if (a2)
-      v6 = v5 - 15;
-    else
-      v6 = v5 + 10;
-
-    this->playButton.posY = v6;
-    this->marketplaceButton.posY = -1000;
-    this->marketplaceButton.visible = 0;
-    this->marketplaceButton.active = 0;
-    this->playOnRealmsButton.posY = v6 + 40;
-  }
+  this->playButton.posY = v6;
+  this->playOnRealmsButton.posY = v6 + 40;
 }
 
 Touch::StartMenuScreen::~StartMenuScreen() {
@@ -488,6 +468,81 @@ void Touch::StartMenuScreen::render(int32_t a2, int32_t a3, float a4) {
       0xFFFFFF00, -20, scale,
       1, (float)this->width * 0.34f);
   Screen::render(a2, a3, a4);
+  if (PatchManager::instance().isBuildRunning() && this->font) {
+    this->fill(0, 0, this->width, this->height, 0x99000000);
+    int dw = std::min(264, this->width - 24);
+    int dh = 76;
+    int dx = (this->width - dw) / 2;
+    int dy = (this->height - dh) / 2;
+    int barX0 = dx + 18;
+    int barX1 = dx + dw - 18;
+    int barW = barX1 - barX0;
+    int py = dy + dh - 26;
+    int barH = 12;
+    static float s_dispProg = 0.0f;
+    float targetProg = PatchManager::instance().getBuildProgress();
+    if (targetProg < 0.04f) targetProg = 0.04f;
+    if (targetProg > 1.0f) targetProg = 1.0f;
+    if (targetProg < s_dispProg - 0.25f) s_dispProg = targetProg;
+    if (s_dispProg < targetProg) {
+      s_dispProg += (targetProg - s_dispProg) * 0.14f;
+      if (s_dispProg > targetProg) s_dispProg = targetProg;
+    } else if (s_dispProg < 0.96f) {
+      s_dispProg += 0.0005f;
+    }
+    int fillW = (int)(barW * s_dispProg + 0.5f);
+    if (fillW < 2) fillW = 2;
+    if (fillW > barW) fillW = barW;
+
+    if (!this->minecraft->options.classicGUI) {
+      int32_t colorA, colorB;
+      this->minecraft->options.getNeonColors(colorA, colorB);
+      int32_t glowCol = (colorA & 0x00FFFFFF) | 0x44000000;
+      this->fill(dx - 2, dy - 2, dx + dw + 2, dy + dh + 2, glowCol);
+      this->fillGradient(dx + 1, dy + 1, dx + dw - 1, dy + dh - 1, 0xF00D0214, 0xF01E042D);
+      this->fill(dx, dy, dx + dw, dy + 1, colorA);
+      this->fill(dx, dy + dh - 1, dx + dw, dy + dh, colorA);
+      this->fill(dx, dy, dx + 1, dy + dh, colorA);
+      this->fill(dx + dw - 1, dy, dx + dw, dy + dh, colorA);
+      this->fill(dx + 8, dy + 20, dx + dw - 8, dy + 21, (colorB & 0x00FFFFFF) | 0x88000000);
+      this->fill(barX0 - 2, py - 2, barX1 + 2, py + barH + 2, 0xAA000000);
+      this->fill(barX0 - 1, py - 1, barX1 + 1, py + barH + 1, (colorA & 0x00FFFFFF) | 0xAA000000);
+      this->fill(barX0, py, barX1, py + barH, 0xFF140820);
+      this->fillGradient(barX0, py, barX0 + fillW, py + barH, colorA, colorB);
+      this->fill(barX0, py, barX0 + fillW, py + 2, 0x55FFFFFF);
+    } else {
+      NinePatchFactory npf(this->minecraft->texturesPtr, "gui/spritesheet.png");
+      NinePatchLayer* dlgBg = npf.createSymmetrical({34, 43, 14, 14}, 3, 3, (float)dw, (float)dh);
+      NinePatchLayer* insetBg = npf.createSymmetrical({0, 32, 8, 8}, 3, 3, (float)(dw - 14), (float)(dh - 26));
+      if (dlgBg) {
+        dlgBg->draw(Tesselator::instance, (float)dx, (float)dy);
+        delete dlgBg;
+      }
+      if (insetBg) {
+        insetBg->draw(Tesselator::instance, (float)(dx + 7), (float)(dy + 20));
+        delete insetBg;
+      }
+      this->fill(barX0 - 2, py - 2, barX1 + 2, py + barH + 2, 0xFF141414);
+      this->fill(barX0 - 1, py - 1, barX1 + 1, py + barH + 1, 0xFF3E3E3E);
+      this->fill(barX0, py, barX1, py + barH, 0xFF202020);
+      this->fill(barX0, py, barX0 + fillW, py + barH, 0xFF4CC44C);
+      this->fill(barX0, py, barX0 + fillW, py + 2, 0xFF88FF88);
+      this->fill(barX0, py + barH - 2, barX0 + fillW, py + barH, 0xFF2B8A2B);
+      if (fillW > 2) {
+        this->fill(barX0 + fillW - 1, py, barX0 + fillW, py + barH, 0xFF9EFF9E);
+      }
+    }
+    this->drawCenteredString(this->font, "Applying Patches...", this->width / 2, dy + 7, 0xFFFFFFA0);
+    std::string st = PatchManager::instance().getBuildStatus();
+    while (st.size() > 3 && this->font->width(st) > dw - 28) {
+      st.resize(st.size() - 4);
+      st += "...";
+    }
+    this->drawCenteredString(this->font, st, this->width / 2, dy + 28, 0xFFE6E6E6);
+    int pct = (int)(s_dispProg * 100.0f + 0.5f);
+    if (pct > 100) pct = 100;
+    this->drawCenteredString(this->font, std::to_string(pct) + "%", this->width / 2, py + 2, 0xFFFFFFFF);
+  }
 }
 void Touch::StartMenuScreen::init() {
   this->playButton.init(this->minecraft);
@@ -530,23 +585,13 @@ void Touch::StartMenuScreen::init() {
   this->settingsButtonMaybe->setImageDef(v13, 0);
   this->settingsButtonMaybe->width = 32;
   this->settingsButtonMaybe->height = 32;
-#if !defined(ANDROID) && !defined(__ANDROID__) && !defined(MCPE_IOS) && !defined(__APPLE__) && !defined(TARGET_OS_IPHONE) && !defined(IPHONE)
-  this->marketplaceButton.init(this->minecraft);
-  this->marketplaceButton.setMsg("Texture Packs");
-  this->marketplaceButton.active =
-      (Options::instance && Options::instance->marketplace);
-  this->marketplaceButton.visible =
-      (Options::instance && Options::instance->marketplace);
-  this->buttons.emplace_back(&this->marketplaceButton);
-  this->field_2C.emplace_back(&this->marketplaceButton);
-#endif
   this->buttons.emplace_back(&this->playButton);
   this->buttons.emplace_back(&this->playOnRealmsButton);
   this->buttons.emplace_back(this->settingsButtonMaybe);
   this->field_2C.emplace_back(&this->playButton);
   this->field_2C.emplace_back(&this->playOnRealmsButton);
   this->field_2C.emplace_back(this->settingsButtonMaybe);
-  this->field_138 = "\x0fMojang AB, ModifiedEight New Additions 1.8.0.1_build2 ";
+  this->field_138 = "\x0fMojang AB, ModifiedEight New Additions 1.8.0.1_build3 ";
   this->field_13C = Common::getGameVersionString();
   this->playOnRealmsButton.active = 0;
   this->playButton.active = 0;
@@ -578,19 +623,45 @@ bool_t Touch::StartMenuScreen::handleBackEvent(bool_t) {
   this->minecraft->quit();
   return 1;
 }
-void Touch::StartMenuScreen::tick() { this->_updateLicense(); }
+void Touch::StartMenuScreen::tick() {
+  this->_updateLicense();
+  PatchManager& pm = PatchManager::instance();
+  bool ok = false, willRelaunch = false;
+  std::string err;
+  if (pm.pollAsyncResult(ok, willRelaunch, err)) {
+    if (!ok) {
+      this->minecraft->setScreen(new PatchErrorScreen(err, PatchErrorScreen::RETURN_START_MENU, false));
+      return;
+    }
+    if (willRelaunch) {
+      if (!pm.relaunchPendingBinary()) {
+        this->minecraft->setScreen(new PatchErrorScreen(pm.getLastError(), PatchErrorScreen::RETURN_START_MENU, false));
+      }
+      return;
+    }
+    if (pm.hasEnabledAssetOverrides()) {
+      pm.applyRuntimeAssetReload((NinecraftApp*)this->minecraft);
+    }
+  } else if (!pm.isBuildRunning()) {
+    static bool s_checkedStartupPatchErr = false;
+    if (!s_checkedStartupPatchErr) {
+      s_checkedStartupPatchErr = true;
+      if (pm.hasError()) {
+        this->minecraft->setScreen(new PatchErrorScreen(pm.getLastError(), PatchErrorScreen::RETURN_START_MENU, false));
+        return;
+      }
+    }
+  }
+}
 bool_t Touch::StartMenuScreen::isInGameScreen() { return 0; }
 void Touch::StartMenuScreen::buttonClicked(struct Button *button) {
+  if (PatchManager::instance().isBuildRunning()) return;
   if (button->buttonID == this->playButton.buttonID) {
     this->minecraft->setScreen(new PlayScreen(1));
     return;
   }
   if (button->buttonID == this->playOnRealmsButton.buttonID) {
     this->minecraft->setScreen(new PlayScreen(0));
-    return;
-  }
-  if (button->buttonID == this->marketplaceButton.buttonID) {
-    this->minecraft->setScreen(new TexturesScreen());
     return;
   }
   if (button->buttonID == this->settingsButtonMaybe->buttonID) {

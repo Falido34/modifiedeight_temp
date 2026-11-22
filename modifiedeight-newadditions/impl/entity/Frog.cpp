@@ -183,8 +183,8 @@ bool_t Frog::canSpawn() {
 	if (y <= 1 || y >= 127) return 0;
 	int32_t tileBelow = this->level->getTile(x, y - 1, z);
 	int32_t tileAt = this->level->getTile(x, y, z);
-	if (tileAt != 0 && tileAt != Tile::waterLily->blockID && tileAt != Tile::tallgrass->blockID && tileAt != Tile::water->blockID && tileAt != Tile::calmWater->blockID && Tile::tiles[tileAt] && Tile::tiles[tileAt]->isSolidRender()) return 0;
-	return (tileBelow == Tile::grass->blockID || tileBelow == Tile::dirt->blockID || tileBelow == Tile::sand->blockID || tileBelow == Tile::leaves->blockID || tileBelow == Tile::waterLily->blockID || tileBelow == Tile::water->blockID || tileBelow == Tile::calmWater->blockID || tileBelow == Tile::clay->blockID || tileBelow == Tile::gravel->blockID || tileBelow == Tile::wood->blockID || tileBelow == Tile::treeTrunk->blockID);
+	if (this->level->isSolidBlockingTile(x, y, z) && tileAt != Tile::waterLily->blockID) return 0;
+	return (tileBelow == Tile::grass->blockID || tileBelow == Tile::dirt->blockID || tileBelow == Tile::sand->blockID || tileBelow == Tile::waterLily->blockID || tileBelow == Tile::water->blockID || tileBelow == Tile::calmWater->blockID || tileBelow == Tile::clay->blockID || tileBelow == Tile::gravel->blockID || tileBelow == Tile::wood->blockID || tileBelow == Tile::treeTrunk->blockID || this->level->isSolidBlockingTile(x, y - 1, z));
 }
 
 bool_t Frog::removeWhenFarAway() {

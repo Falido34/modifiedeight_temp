@@ -414,7 +414,7 @@ void Mob::tick() {
 		}
 	}
 
-	if (!this->isPlayer() && this->health > 0 && this->getEntityTypeId() != 14 && this->getEntityTypeId() != 38 && this->getEntityTypeId() != 22 && this->getEntityTypeId() != 21) {
+	if (!this->isPlayer() && !this->rider && this->health > 0 && this->getEntityTypeId() != 14 && this->getEntityTypeId() != 38 && this->getEntityTypeId() != 22 && this->getEntityTypeId() != 21) {
 		Player* nearPlayer = this->level ? this->level->getNearestPlayer(this, 10.0f) : 0;
 		if (this->ambientLookTicks > 0) {
 			--this->ambientLookTicks;

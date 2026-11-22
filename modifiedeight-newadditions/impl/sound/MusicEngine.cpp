@@ -1,5 +1,5 @@
 #include <sound/MusicEngine.hpp>
-#include <sound/MusicPlayerManager.hpp>
+#include <sound/JukeboxManager.hpp>
 #include <Minecraft.hpp>
 #include <NinecraftApp.hpp>
 #include <entity/Player.hpp>
@@ -664,9 +664,9 @@ void MusicEngine::update(Minecraft* mc) {
 		this->init();
 	}
 
-	if (MusicPlayerManager::instance.isPlaying) {
+	if (JukeboxManager::instance.isPlaying) {
 		if (!mc->level) {
-			MusicPlayerManager::instance.stopImmediate();
+			JukeboxManager::instance.stopImmediate();
 			return;
 		}
 		this->currentMode = MUSIC_MODE_CUSTOM;
@@ -674,9 +674,9 @@ void MusicEngine::update(Minecraft* mc) {
 		if (this->isPlaying) {
 			this->streamBuffers();
 		} else {
-			MusicPlayerManager::instance.onTrackFinished();
+			JukeboxManager::instance.onTrackFinished();
 		}
-		MusicPlayerManager::instance.update(mc);
+		JukeboxManager::instance.update(mc);
 		return;
 	}
 

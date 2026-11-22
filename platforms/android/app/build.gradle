@@ -14,7 +14,7 @@ android {
         minSdk 14
         targetSdk 34
         versionCode 8
-        versionName "1.8.0_build2"
+        versionName "1.8.0_build3"
         externalNativeBuild {
             cmake {
                 cppFlags ''

@@ -173,30 +173,30 @@ void ItemFrame::setDir(int32_t dir) {
 		this->prevYaw = 0.0f;
 		this->pitch = 0.0f;
 		pz += dist;
-		this->boundingBox = { px - 0.375f, py - 0.375f, pz - 0.0625f, px + 0.375f, py + 0.375f, pz + 0.0625f };
+		this->boundingBox = { px - 0.375f, py - 0.375f, pz, px + 0.375f, py + 0.375f, pz + 0.0625f };
 	} else if (dir == 1) {
 		this->yaw = 90.0f;
 		this->prevYaw = 90.0f;
 		this->pitch = 0.0f;
 		px -= dist;
-		this->boundingBox = { px - 0.0625f, py - 0.375f, pz - 0.375f, px + 0.0625f, py + 0.375f, pz + 0.375f };
+		this->boundingBox = { px - 0.0625f, py - 0.375f, pz - 0.375f, px, py + 0.375f, pz + 0.375f };
 	} else if (dir == 2) {
 		this->yaw = 180.0f;
 		this->prevYaw = 180.0f;
 		this->pitch = 0.0f;
 		pz -= dist;
-		this->boundingBox = { px - 0.375f, py - 0.375f, pz - 0.0625f, px + 0.375f, py + 0.375f, pz + 0.0625f };
+		this->boundingBox = { px - 0.375f, py - 0.375f, pz - 0.0625f, px + 0.375f, py + 0.375f, pz };
 	} else if (dir == 3) {
 		this->yaw = 270.0f;
 		this->prevYaw = 270.0f;
 		this->pitch = 0.0f;
 		px += dist;
-		this->boundingBox = { px - 0.0625f, py - 0.375f, pz - 0.375f, px + 0.0625f, py + 0.375f, pz + 0.375f };
+		this->boundingBox = { px, py - 0.375f, pz - 0.375f, px + 0.0625f, py + 0.375f, pz + 0.375f };
 	} else if (dir == 4) {
 		this->pitch = 90.0f;
 		this->prevPitch = 90.0f;
 		py -= dist;
-		this->boundingBox = { px - 0.375f, py - 0.0625f, pz - 0.375f, px + 0.375f, py + 0.0625f, pz + 0.375f };
+		this->boundingBox = { px - 0.375f, py - 0.0625f, pz - 0.375f, px + 0.375f, py, pz + 0.375f };
 	} else if (dir == 5) {
 		this->pitch = -90.0f;
 		this->prevPitch = -90.0f;
@@ -216,7 +216,7 @@ void ItemFrame::setDir(int32_t dir) {
 		} else {
 			py += dist;
 		}
-		this->boundingBox = { px - 0.375f, py - 0.0625f, pz - 0.375f, px + 0.375f, py + 0.0625f, pz + 0.375f };
+		this->boundingBox = { px - 0.375f, py, pz - 0.375f, px + 0.375f, py + 0.0625f, pz + 0.375f };
 	}
 	this->setPos(px, py, pz);
 }

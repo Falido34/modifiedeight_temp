@@ -13,7 +13,6 @@ namespace Touch{
 
 		Touch::TButton playButton;
 		Touch::TButton playOnRealmsButton;
-		Touch::TButton marketplaceButton;
 		ImageWithBackground* settingsButtonMaybe;
 		BuyButton buyButton;
 		std::string field_138;

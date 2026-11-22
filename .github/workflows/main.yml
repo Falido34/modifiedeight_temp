@@ -7,6 +7,9 @@ on:
     branches: ["main", "master"]
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build-linux:
     runs-on: ubuntu-latest
@@ -67,13 +70,19 @@ jobs:
           cp -r ../platforms/android/app/src/newadditions/assets/* modifiedeight-newadditions/build/assets/ 2>/dev/null || true
           cp -r ../modifiedeight-newadditions/assets/* modifiedeight-newadditions/build/assets/ 2>/dev/null || true
 
-      - name: upload stuff
+      - name: Upload Linux Classic Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-linux
+          name: build-linux-classic
           path: |
             build/modifiedeight/build/modifiedeight
             build/modifiedeight/build/assets
+
+      - name: Upload Linux New Additions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux-newadditions
+          path: |
             build/modifiedeight-newadditions/build/modifiedeight-newadditions
             build/modifiedeight-newadditions/build/assets
 
@@ -147,8 +156,6 @@ jobs:
 
           ccache -s || true
 
-          cp modifiedeight/build/modifiedeight.exe . 2>/dev/null || true
-          cp modifiedeight-newadditions/build/modifiedeight-newadditions.exe . 2>/dev/null || true
           cp ../prebuilt/win64/lib/SDL.dll .
           cp /usr/x86_64-w64-mingw32/bin/zlib1.dll . 2>/dev/null || true
           cp /usr/x86_64-w64-mingw32/lib/zlib1.dll . 2>/dev/null || true
@@ -157,21 +164,34 @@ jobs:
           cp /usr/lib/gcc/x86_64-w64-mingw32/*-win32/libgcc_s_seh-1.dll . 2>/dev/null || true
           cp /usr/lib/gcc/x86_64-w64-mingw32/*-posix/libgcc_s_seh-1.dll . 2>/dev/null || true
           cp /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll . 2>/dev/null || true
-          mkdir -p assets
-          cp -r ../platforms/android/app/src/newadditions/assets/* assets/ 2>/dev/null || true
-          cp -r ../modifiedeight-newadditions/assets/* assets/ 2>/dev/null || true
 
-      - name: upload stuff
+          mkdir -p win-classic/assets win-newadditions/assets
+          cp modifiedeight/build/modifiedeight.exe win-classic/
+          cp modifiedeight-newadditions/build/modifiedeight-newadditions.exe win-newadditions/
+          cp *.dll win-classic/
+          cp *.dll win-newadditions/
+          cp -r ../platforms/android/app/src/classic/assets/* win-classic/assets/ 2>/dev/null || true
+          cp -r ../modifiedeight/assets/* win-classic/assets/ 2>/dev/null || true
+          cp -r ../platforms/android/app/src/newadditions/assets/* win-newadditions/assets/ 2>/dev/null || true
+          cp -r ../modifiedeight-newadditions/assets/* win-newadditions/assets/ 2>/dev/null || true
+
+      - name: Upload Windows Classic Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-windows
+          name: build-windows-classic
           path: |
-            build/modifiedeight.exe
-            build/modifiedeight-newadditions.exe
-            build/SDL.dll
-            build/zlib1.dll
-            build/*.dll
-            build/assets
+            build/win-classic/modifiedeight.exe
+            build/win-classic/*.dll
+            build/win-classic/assets
+
+      - name: Upload Windows New Additions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-windows-newadditions
+          path: |
+            build/win-newadditions/modifiedeight-newadditions.exe
+            build/win-newadditions/*.dll
+            build/win-newadditions/assets
 
   build-ios:
     runs-on: ubuntu-24.04
@@ -244,13 +264,17 @@ jobs:
           ./build.sh newadditions
           ccache -s || true
 
-      - name: upload iOS artifacts
+      - name: Upload iOS Classic Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-ios-ipa
-          path: |
-            platforms/ios/build/ModifiedEight.ipa
-            platforms/ios/build/ModifiedEight-NewAdditions.ipa
+          name: build-ios-ipa-classic
+          path: platforms/ios/build/ModifiedEight.ipa
+
+      - name: Upload iOS New Additions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-ios-ipa-newadditions
+          path: platforms/ios/build/ModifiedEight-NewAdditions.ipa
 
   build-android:
     runs-on: ubuntu-latest
@@ -340,8 +364,66 @@ jobs:
         working-directory: platforms/android
         run: ./gradlew assembleRelease
 
-      - name: Upload Android Artifacts
+      - name: Upload Android Classic Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-android-apk
-          path: platforms/android/app/build/outputs/apk/**/*.apk
+          name: build-android-apk-classic
+          path: platforms/android/app/build/outputs/apk/classic/release/*.apk
+
+      - name: Upload Android New Additions Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-android-apk-newadditions
+          path: platforms/android/app/build/outputs/apk/newadditions/release/*.apk
+
+  create-release:
+    needs: [build-linux, build-windows, build-ios, build-android]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download All Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package Artifacts and Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release-assets
+
+          if [ -f artifacts/build-linux-classic/modifiedeight ]; then
+            chmod +x artifacts/build-linux-classic/modifiedeight
+          fi
+          if [ -f artifacts/build-linux-newadditions/modifiedeight-newadditions ]; then
+            chmod +x artifacts/build-linux-newadditions/modifiedeight-newadditions
+          fi
+
+          for dir in artifacts/*; do
+            if [ -d "$dir" ]; then
+              artifact_name="$(basename "$dir")"
+              (cd "$dir" && zip -r "../../release-assets/${artifact_name}.zip" .)
+            fi
+          done
+
+          VERSION=$(sed -n 's/.*versionName[[:space:]]*"\([^"]*\)".*/\1/p' platforms/android/app/build.gradle | head -n 1)
+          if [ -z "$VERSION" ]; then
+            VERSION="build"
+          fi
+
+          TAG_NAME="v${VERSION}"
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1 || gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            TAG_NAME="v${VERSION}-${GITHUB_RUN_NUMBER}"
+          fi
+
+          gh release create "$TAG_NAME" release-assets/*.zip \
+            --title "ModifiedEight ${TAG_NAME}" \
+            --generate-notes \
+            --target "${GITHUB_SHA}"

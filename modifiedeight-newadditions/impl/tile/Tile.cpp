@@ -62,7 +62,7 @@
 #include <tile/GravelTile.hpp>
 #include <tile/SlimeBlockTile.hpp>
 #include <tile/SweetBerryBushTile.hpp>
-#include <tile/MusicPlayerTile.hpp>
+#include <tile/JukeboxTile.hpp>
 #include <tile/HayBlockTile.hpp>
 #include <tile/HeavyTile.hpp>
 #include <tile/IceTile.hpp>
@@ -346,8 +346,6 @@ Tile *Tile::gravelSlab;
 Tile *Tile::gravelSlabHalf;
 Tile *Tile::glowLampSlab;
 Tile *Tile::glowLampSlabHalf;
-Tile *Tile::glowOreSlab;
-Tile *Tile::glowOreSlabHalf;
 Tile *Tile::redstoneLampSlab;
 Tile *Tile::redstoneLampSlabHalf;
 Tile *Tile::redstoneLampSlabOn;
@@ -360,7 +358,7 @@ Tile *Tile::stonecutterBench;
 Tile *Tile::slimeBlock;
 Tile *Tile::sweetBerryBush;
 Tile *Tile::glowstoneOre;
-Tile *Tile::musicPlayer;
+Tile *Tile::jukebox;
 Tile *Tile::glowingObsidian;
 Tile *Tile::netherReactor;
 Tile *Tile::info_updateGame1;
@@ -1602,13 +1600,13 @@ void Tile::initTiles(std::shared_ptr<TextureAtlas> a1) {
                             ->setLightEmission(0.85f)
                             ->setCategory(1, 8)
                             ->setDescriptionId("glowstoneOre");
-  Tile::musicPlayer = (new MusicPlayerTile(84))
+  Tile::jukebox = (new JukeboxTile(84))
                           ->init()
                           ->setDestroyTime(2.0)
                           ->setExplodeable(30.0)
                           ->setSoundType(Tile::SOUND_WOOD)
                           ->setCategory(2, 1)
-                          ->setDescriptionId("musicPlayer");
+                          ->setDescriptionId("jukebox");
   Tile::glowingObsidian = (new ObsidianTile(246, "glowing_obsidian", 1))
                               ->init()
                               ->setDestroyTime(10.0)
@@ -1683,18 +1681,6 @@ void Tile::initTiles(std::shared_ptr<TextureAtlas> a1) {
       Tile::glowLampSlab->blockID;
   ((CustomSlabTile *)Tile::glowLampSlab)->partnerSlabId =
       Tile::glowLampSlabHalf->blockID;
-  Tile::glowOreSlabHalf = (new CustomSlabTile(218, 0, 6))
-                          ->init()
-                          ->setCategory(2, 1)
-                          ->setDescriptionId("glowstone_ore_slab");
-  Tile::glowOreSlab = (new CustomSlabTile(219, 1, 6))
-                      ->init()
-                      ->setCategory(2, 1)
-                      ->setDescriptionId("glowstone_ore_slab");
-  ((CustomSlabTile *)Tile::glowOreSlabHalf)->partnerSlabId =
-      Tile::glowOreSlab->blockID;
-  ((CustomSlabTile *)Tile::glowOreSlab)->partnerSlabId =
-      Tile::glowOreSlabHalf->blockID;
   Tile::redstoneLampSlabHalf = (new CustomSlabTile(220, 0, 7))
                                    ->init()
                                    ->setCategory(2, 1)
@@ -1957,12 +1943,6 @@ void Tile::initTiles(std::shared_ptr<TextureAtlas> a1) {
                                 Tile::glowLampSlab->blockID))
           ->setCategory(2, 1)
           ->setDescriptionId("glowstone_lamp_slab");
-  Item::items[Tile::glowOreSlabHalf->blockID] =
-      (new CustomSlabTile::Item(Tile::glowOreSlabHalf->blockID - 256,
-                                Tile::glowOreSlabHalf, Tile::glowOreSlabHalf->blockID,
-                                Tile::glowOreSlab->blockID))
-          ->setCategory(2, 1)
-          ->setDescriptionId("glowstone_ore_slab");
   Item::items[Tile::redstoneLampSlabHalf->blockID] =
       (new CustomSlabTile::Item(Tile::redstoneLampSlabHalf->blockID - 256,
                                 Tile::redstoneLampSlabHalf, Tile::redstoneLampSlabHalf->blockID,

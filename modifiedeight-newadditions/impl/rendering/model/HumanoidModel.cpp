@@ -108,12 +108,12 @@ struct HumanoidPoseState {
 	float crouch;
 	float swim;
 	float lastBob;
-	uint64_t lastMs;
+	uint64_t lastUs;
 };
 static std::map<int32_t, HumanoidPoseState> s_poseStates;
 
-static uint64_t getPoseNowMs() {
-	return (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(
+static uint64_t getPoseNowUs() {
+	return (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(
 		std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
@@ -123,22 +123,24 @@ static void updatePoseBlend(Entity* ent, float targetCrouch, float targetSwim, f
 		outSwim = targetSwim;
 		return;
 	}
-	uint64_t nowMs = getPoseNowMs();
+	uint64_t nowUs = getPoseNowUs();
 	auto it = s_poseStates.find(ent->entityId);
 	if (it == s_poseStates.end()) {
 		HumanoidPoseState st;
 		st.crouch = targetCrouch;
 		st.swim = targetSwim;
 		st.lastBob = bob;
-		st.lastMs = nowMs;
+		st.lastUs = nowUs;
 		s_poseStates[ent->entityId] = st;
 		outCrouch = targetCrouch;
 		outSwim = targetSwim;
 		return;
 	}
 	HumanoidPoseState& st = it->second;
-	if (fabsf(bob - st.lastBob) > 1e-4f || (nowMs >= st.lastMs && (nowMs - st.lastMs) >= 16)) {
-		float dt = (nowMs > st.lastMs) ? (float)(nowMs - st.lastMs) * 0.001f : 0.0f;
+	uint64_t elapsedUs = (nowUs > st.lastUs) ? (nowUs - st.lastUs) : 0;
+	if (fabsf(bob - st.lastBob) > 1e-4f || elapsedUs >= 2000) {
+		float dt = (elapsedUs > 0) ? (float)elapsedUs * 1e-6f : 0.008f;
+		if (dt < 0.002f) dt = 0.002f;
 		if (dt > 0.05f) dt = 0.05f;
 		float cAlpha = 1.0f - expf(-18.0f * dt);
 		float sAlpha = 1.0f - expf(-10.0f * dt);
@@ -147,7 +149,7 @@ static void updatePoseBlend(Entity* ent, float targetCrouch, float targetSwim, f
 		if (fabsf(targetCrouch - st.crouch) < 0.001f) st.crouch = targetCrouch;
 		if (fabsf(targetSwim - st.swim) < 0.001f) st.swim = targetSwim;
 		st.lastBob = bob;
-		st.lastMs = nowMs;
+		st.lastUs = nowUs;
 	}
 	outCrouch = st.crouch;
 	outSwim = st.swim;

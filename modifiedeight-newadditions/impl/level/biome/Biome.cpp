@@ -174,8 +174,8 @@ void Biome::initBiomes(void) {
 	Biome::rainForest->creatureVec.emplace_back(Biome::MobSpawnerData(30, 22, 1, 3));
 	Biome::rainForest->waterCreatureVec.emplace_back(Biome::MobSpawnerData(8, 39, 1, 3));
 	Biome::swampland = (new SwampBiome())->clearMobs(1, 0, 0)->setColor(0x7F9B2)->setName("Swampland")->setLeafColor(0x6A7039)->setTemperatureAndDownfall(0.8f, 0.9f);
-	Biome::swampland->monsterVec.emplace_back(Biome::MobSpawnerData(120, 37, 4, 8));
-	Biome::swampland->creatureVec.emplace_back(Biome::MobSpawnerData(100, 37, 4, 8));
+	Biome::swampland->monsterVec.emplace_back(Biome::MobSpawnerData(10, 37, 1, 2));
+	Biome::swampland->creatureVec.emplace_back(Biome::MobSpawnerData(45, 40, 2, 4));
 	Biome::swampland->creatureVec.emplace_back(Biome::MobSpawnerData(10, 10, 1, 2));
 	Biome::swampland->creatureVec.emplace_back(Biome::MobSpawnerData(10, 12, 1, 2));
 	Biome::swampland->waterCreatureVec.emplace_back(Biome::MobSpawnerData(10, 39, 1, 3));
@@ -203,9 +203,8 @@ void Biome::initBiomes(void) {
 	Biome::jungle->monsterVec.emplace_back(Biome::MobSpawnerData(25, 22, 1, 1));
 	Biome::jungle->waterCreatureVec.emplace_back(Biome::MobSpawnerData(8, 39, 1, 3));
 	Biome::equatorialRainforest = (new EquatorialRainforestBiome())->setColor(0x1F4715)->setName("Equatorial Rainforest")->setLeafColor(0x2A621E)->setTemperatureAndDownfall(1.3f, 1.0f);
-	Biome::equatorialRainforest->monsterVec.emplace_back(Biome::MobSpawnerData(35, 37, 2, 5));
+	Biome::equatorialRainforest->monsterVec.emplace_back(Biome::MobSpawnerData(10, 37, 1, 2));
 	Biome::equatorialRainforest->monsterVec.emplace_back(Biome::MobSpawnerData(20, 22, 1, 1));
-	Biome::equatorialRainforest->creatureVec.emplace_back(Biome::MobSpawnerData(35, 37, 2, 5));
 	Biome::equatorialRainforest->creatureVec.emplace_back(Biome::MobSpawnerData(35, 40, 1, 3));
 	Biome::equatorialRainforest->creatureVec.emplace_back(Biome::MobSpawnerData(45, 22, 1, 3));
 	Biome::equatorialRainforest->waterCreatureVec.emplace_back(Biome::MobSpawnerData(20, 39, 2, 6));
@@ -219,8 +218,6 @@ void Biome::initBiomes(void) {
 	Biome::icePeaks->creatureVec.emplace_back(Biome::MobSpawnerData(45, 14, 2, 4));
 	Biome::icePeaks->creatureVec.emplace_back(Biome::MobSpawnerData(45, 38, 2, 4));
 	Biome::mushroom = (new MushroomBiome())->setColor(0xA07F9B)->setName("Mushrooms")->setLeafColor(0x6A7039)->setTemperatureAndDownfall(0.9f, 1.0f);
-	Biome::mushroom->monsterVec.emplace_back(Biome::MobSpawnerData(100, 37, 2, 6));
-	Biome::mushroom->creatureVec.emplace_back(Biome::MobSpawnerData(100, 37, 2, 6));
 	Biome::recalc();
 }
 

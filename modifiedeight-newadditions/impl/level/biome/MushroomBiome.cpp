@@ -8,8 +8,7 @@ MushroomBiome::MushroomBiome()
 	this->topBlock = Tile::mycelium ? Tile::mycelium->blockID : Tile::grass->blockID;
 	this->fillerBlock = Tile::dirt->blockID;
 	this->clearMobs(1, 0, 1);
-	this->monsterVec.emplace_back(Biome::MobSpawnerData(100, 37, 2, 6));
-	this->creatureVec.emplace_back(Biome::MobSpawnerData(100, 37, 2, 6));
+	this->monsterVec.emplace_back(Biome::MobSpawnerData(8, 37, 1, 2));
 }
 
 MushroomBiome::~MushroomBiome() {

@@ -123,63 +123,57 @@ bool_t Player::checkBed() {
 	return Tile::isBed(this->level->getTile(this->bedPosition.x, this->bedPosition.y, this->bedPosition.z));
 }
 void Player::findStandUpPosition(Entity* a2) {
-	int32_t v4;	  // r6
-	float v5;	  // s17
-	float v6;	  // s15
-	float maxY;	  // s14
-	float maxX;	  // s13
-	float minX;	  // s10
-	Level* level; // r1
-	float posX;	  // s22
-	float posZ;	  // s21
-	float v13;	  // s12
-	float v14;	  // s15
-	float maxZ;	  // s14
-	int32_t v18;  // s22
-	int32_t v19;  // s21
-	float posY;	  // s15
-	int32_t v22;  // r5
-	float v23;	  // s16
+	if (!a2 || !this->level) {
+		return;
+	}
+	float baseX = a2->posX;
+	float baseY = a2->boundingBox.minY;
+	float baseZ = a2->posZ;
+	float halfW = this->entityWidth * 0.5f;
+	if (halfW < 0.3f) halfW = 0.3f;
+	float h = this->entityHeight;
+	if (h < 1.8f) h = 1.8f;
 
-	AABB v25{0, 0, 0, 1, 1, 1};
-	v4 = 3;
-	v5 = -1.5;
-	do {
-		v22 = 3;
-		v23 = -1.5;
-		do {
-			if(v5 != 0.0 || v23 != 0.0) {
-				v6 = this->ridingHeight + 1.0;
-				maxY = this->boundingBox.maxY;
-				maxX = this->boundingBox.maxX;
-				minX = this->boundingBox.minX;
-				level = this->level;
-				posX = this->posX;
-				posZ = this->posZ;
-				v13 = v23 + this->boundingBox.minZ;
-				v14 = v6 + maxY;
-				maxZ = this->boundingBox.maxZ;
-				std::vector<AABB> v24 = level->getTileCubes({minX + v5, v6 + this->boundingBox.minY, v13, v5 + maxX, v14, v23 + maxZ});
-				if(v24.begin() == v24.end()) {
-					v18 = (int32_t)(float)(posX + v5);
-					v19 = (int32_t)(float)(posZ + v23);
-					posY = this->posY;
-					if(this->level->isTopSolidBlocking(v18, (int32_t)this->posY, v19)) {
-						this->teleportTo(v5 + this->posX, posY + 1.0, v23 + this->posZ);
-						return;
-					}
-					if(!this->level->isTopSolidBlocking(v18, (int32_t)posY - 1, v19)) {
-						this->level->getMaterial(v18, (int32_t)this->posY - 1, v19);
-					}
-				}
+	static const float offsets[8][2] = {
+		{ 1.25f,  0.0f},
+		{-1.25f,  0.0f},
+		{ 0.0f,  1.25f},
+		{ 0.0f, -1.25f},
+		{ 1.0f,  1.0f},
+		{-1.0f,  1.0f},
+		{ 1.0f, -1.0f},
+		{-1.0f, -1.0f}
+	};
+	static const float yOffsets[3] = {0.0f, 1.0f, -1.0f};
+
+	for (int pass = 0; pass < 2; ++pass) {
+		for (int i = 0; i < 8; ++i) {
+			float tx = baseX + offsets[i][0];
+			float tz = baseZ + offsets[i][1];
+			for (int j = 0; j < 3; ++j) {
+				float ty = floorf(baseY + yOffsets[j] + 0.01f);
+				AABB box{tx - halfW, ty, tz - halfW, tx + halfW, ty + h, tz + halfW};
+				std::vector<AABB> cubes = this->level->getTileCubes(box);
+				if (!cubes.empty()) continue;
+				int32_t bx = Mth::floor(tx);
+				int32_t by = Mth::floor(ty) - 1;
+				int32_t bz = Mth::floor(tz);
+				bool solidBelow = this->level->isTopSolidBlocking(bx, by, bz) != 0;
+				if (pass == 0 && !solidBelow) continue;
+				if (pass == 1 && !solidBelow && !this->level->getMaterial(bx, by, bz)->isLiquid()) continue;
+				this->teleportTo(tx, ty + this->ridingHeight + 0.05f, tz);
+				return;
 			}
-			--v22;
-			v23 = v23 + 1.5;
-		} while(v22);
-		--v4;
-		v5 = v5 + 1.5;
-	} while(v4);
-	a2->positionRider(1);
+		}
+	}
+
+	float topY = baseY + a2->entityHeight + 0.05f;
+	AABB topBox{baseX - halfW, topY, baseZ - halfW, baseX + halfW, topY + h, baseZ + halfW};
+	if (this->level->getTileCubes(topBox).empty()) {
+		this->teleportTo(baseX, topY + this->ridingHeight, baseZ);
+		return;
+	}
+	this->teleportTo(baseX, baseY + this->ridingHeight + 0.05f, baseZ);
 }
 ItemInstance* Player::getArmor(int32_t a2) {
 	ItemInstance* v2; // r4

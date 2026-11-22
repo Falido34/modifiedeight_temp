@@ -233,7 +233,6 @@ static const char* getSlabTexture(int32_t slabType) {
 	if (slabType == 3) return "copper_block";
 	if (slabType == 4) return "soul_sand";
 	if (slabType == 5) return "glowstone";
-	if (slabType == 6) return "glowstone_ore";
 	if (slabType == 7) return "redstone_lamp_off";
 	if (slabType == 8) return "sand";
 	if (slabType == 9) return "gravel";
@@ -264,11 +263,6 @@ CustomSlabTile::CustomSlabTile(int32_t id, bool_t isFull, int32_t slabType)
 		this->setSoundType(Tile::SOUND_STONE);
 		this->setDestroyTime(1.5f);
 		this->setLightEmission(1.0f);
-	} else if (slabType == 6) {
-		this->setSoundType(Tile::SOUND_STONE);
-		this->setDestroyTime(3.0f);
-		this->setExplodeable(5.0f);
-		this->setLightEmission(0.85f);
 	} else if (slabType == 7) {
 		this->setSoundType(Tile::SOUND_STONE);
 		this->setDestroyTime(0.3f);
@@ -301,8 +295,6 @@ TextureUVCoordinateSet* CustomSlabTile::getTexture(int32_t face, int32_t data) {
 		return Tile::soulSand ? Tile::soulSand->getTexture(face, 0) : &this->textureUV;
 	} else if (this->slabType == 5) {
 		return Tile::lightGem ? Tile::lightGem->getTexture(face, 0) : &this->textureUV;
-	} else if (this->slabType == 6) {
-		return Tile::glowstoneOre ? Tile::glowstoneOre->getTexture(face, 0) : &this->textureUV;
 	} else if (this->slabType == 8) {
 		return Tile::sand ? Tile::sand->getTexture(face, 0) : &this->textureUV;
 	} else if (this->slabType == 9) {
@@ -349,8 +341,6 @@ int32_t CustomSlabTile::getResource(int32_t data, Random* rand) {
 		return Tile::soulSandSlabHalf ? Tile::soulSandSlabHalf->blockID : this->blockID;
 	} else if (this->slabType == 5) {
 		return Tile::glowLampSlabHalf ? Tile::glowLampSlabHalf->blockID : this->blockID;
-	} else if (this->slabType == 6) {
-		return Tile::glowOreSlabHalf ? Tile::glowOreSlabHalf->blockID : this->blockID;
 	} else if (this->slabType == 8) {
 		return Tile::sandSlabHalf ? Tile::sandSlabHalf->blockID : this->blockID;
 	} else if (this->slabType == 9) {

@@ -426,7 +426,9 @@ uint64_t fnv1a64(const void* data, size_t len, uint64_t seed = 14695981039346656
 }
 
 bool runCommandCapture(const std::string& cmd, std::string& outLog, int& outExitCode,
-                       std::mutex* statusMtx = nullptr, std::string* statusLine = nullptr) {
+                       std::mutex* statusMtx = nullptr, std::string* statusLine = nullptr,
+                       float* progressVal = nullptr, float progStart = 0.0f, float progEnd = 1.0f,
+                       const char* stageMode = nullptr) {
 	outLog.clear();
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 	FILE* pipe = _popen(cmd.c_str(), "r");
@@ -442,10 +444,56 @@ bool runCommandCapture(const std::string& cmd, std::string& outLog, int& outExit
 	while (fgets(buf, sizeof(buf), pipe) != nullptr) {
 		outLog += buf;
 		if (statusMtx && statusLine) {
-			std::string line = trimCopy(buf);
+			std::string line = PatchManager::stripAnsiCodes(trimCopy(buf));
 			if (!line.empty()) {
-				std::lock_guard<std::mutex> lk(*statusMtx);
-				*statusLine = PatchManager::stripAnsiCodes(line);
+				if (stageMode && strcmp(stageMode, "build") == 0) {
+					int pct = -1;
+					size_t lb = line.find('[');
+					size_t pc = (lb != std::string::npos) ? line.find("%]", lb) : std::string::npos;
+					if (lb != std::string::npos && pc != std::string::npos && pc > lb + 1 && pc - lb <= 5) {
+						std::string numStr = trimCopy(line.substr(lb + 1, pc - lb - 1));
+						bool allDigits = !numStr.empty();
+						for (char c : numStr) {
+							if (c < '0' || c > '9') { allDigits = false; break; }
+						}
+						if (allDigits) {
+							pct = atoi(numStr.c_str());
+							if (pct < 0) pct = 0;
+							if (pct > 100) pct = 100;
+						}
+					}
+					std::lock_guard<std::mutex> lk(*statusMtx);
+					if (pct >= 0 && progressVal) {
+						float mapped = progStart + (progEnd - progStart) * ((float)pct / 100.0f);
+						if (mapped > *progressVal) *progressVal = mapped;
+					}
+					if (line.find("Linking ") != std::string::npos) {
+						*statusLine = "Linking patched client...";
+						if (progressVal && *progressVal < progEnd - 0.03f) *progressVal = progEnd - 0.03f;
+					} else if (line.find("Built target") != std::string::npos) {
+						*statusLine = "Finalizing patched client...";
+						if (progressVal && *progressVal < progEnd) *progressVal = progEnd;
+					} else if (pct >= 0) {
+						*statusLine = "Compiling patches...";
+					}
+				} else if (stageMode && strcmp(stageMode, "configure") == 0) {
+					if (progressVal) {
+						std::lock_guard<std::mutex> lk(*statusMtx);
+						if (*progressVal < progEnd) {
+							*progressVal = std::min(progEnd, *progressVal + 0.002f);
+						}
+					}
+				} else if (stageMode && strcmp(stageMode, "plugin") == 0) {
+					if (progressVal) {
+						std::lock_guard<std::mutex> lk(*statusMtx);
+						if (*progressVal < progEnd) {
+							*progressVal = std::min(progEnd, *progressVal + 0.01f);
+						}
+					}
+				} else {
+					std::lock_guard<std::mutex> lk(*statusMtx);
+					*statusLine = line;
+				}
 			}
 		}
 	}
@@ -633,7 +681,7 @@ std::string PatchManager::getActiveCodeFingerprint() const {
 
 std::string PatchManager::findBaseSourceRoot() const {
 	auto isValidRoot = [](const std::string& s) {
-		return !s.empty() && isRegularFile(s + "/CMakeLists.txt") && isRegularFile(s + "/modifiedeight-newadditions/CMakeLists.txt");
+		return !s.empty() && s.find("/.build/") == std::string::npos && isRegularFile(s + "/CMakeLists.txt") && isRegularFile(s + "/modifiedeight-newadditions/CMakeLists.txt");
 	};
 	const char* envRoot = getenv("M8_SOURCE_ROOT");
 	if (envRoot && envRoot[0]) {
@@ -855,7 +903,8 @@ bool PatchManager::buildAdditiveDynamicPlugin(const std::string& baseSourceRoot,
 
 	{
 		std::lock_guard<std::mutex> lk(this->mutex_);
-		this->buildStatus_ = "Compiling patch plugin (" + namesSS.str() + ")...";
+		this->buildStatus_ = "Compiling patch plugin...";
+		if (this->buildProgress_ < 0.30f) this->buildProgress_ = 0.30f;
 	}
 
 	std::ostringstream cmd;
@@ -889,7 +938,7 @@ bool PatchManager::buildAdditiveDynamicPlugin(const std::string& baseSourceRoot,
 
 	std::string log;
 	int code = 0;
-	runCommandCapture(cmd.str(), log, code, &this->mutex_, &this->buildStatus_);
+	runCommandCapture(cmd.str(), log, code, &this->mutex_, &this->buildStatus_, &this->buildProgress_, 0.30f, 0.92f, "plugin");
 	if (code != 0 || !isRegularFile(tmpPath)) {
 		remove(tmpPath.c_str());
 		outErr = "Failed to compile patch(es): " + namesSS.str() + "\n\n" + PatchManager::stripAnsiCodes(trimCopy(log));
@@ -1472,6 +1521,18 @@ bool PatchManager::initializeOnStartup() {
 		}
 	}
 #endif
+#if !defined(ANDROID) && !defined(MCPE_IOS)
+	if (!this->relaunchFlag_ && this->needsCodeRebuildOrRelaunch()) {
+		std::vector<std::string> nonCodeEnabled;
+		{
+			std::lock_guard<std::mutex> lock(this->mutex_);
+			for (const auto& p : this->patches_) {
+				if (p.enabled && !p.hasCode) nonCodeEnabled.push_back(p.id);
+			}
+		}
+		this->startApplyPatchesAsync(nonCodeEnabled);
+	}
+#endif
 	return true;
 }
 
@@ -1504,10 +1565,9 @@ bool PatchManager::maybeRelaunchIntoPatchedOnBoot() {
 
 	std::ifstream sf(stampFile.c_str());
 	std::string builtFp;
-	if (sf.is_open() && std::getline(sf, builtFp)) {
-		builtFp = trimCopy(builtFp);
-		if (!builtFp.empty() && builtFp != wantedFp) return false;
-	}
+	if (!sf.is_open() || !std::getline(sf, builtFp)) return false;
+	builtFp = trimCopy(builtFp);
+	if (builtFp.empty() || builtFp != wantedFp) return false;
 
 	this->pendingRelaunchExe_ = patchedExe;
 	return this->relaunchPendingBinary();
@@ -1693,6 +1753,7 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 		this->pendingDynamicPluginPath_.clear();
 		this->pendingDynamicPluginFp_.clear();
 		this->buildStatus_ = "Validating enabled patches...";
+		this->buildProgress_ = 0.05f;
 	}
 	this->buildRunning_ = true;
 
@@ -1837,7 +1898,8 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 
 		{
 			std::lock_guard<std::mutex> lk(this->mutex_);
-			this->buildStatus_ = "Staging patched source workspace...";
+			this->buildStatus_ = "Preparing build workspace...";
+			this->buildProgress_ = 0.14f;
 		}
 
 		ensureDirRecursiveImpl(wsRoot);
@@ -2002,12 +2064,39 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 			std::ifstream sf((cmakeBuildDir + "/staged_sources.sig").c_str());
 			if (sf.is_open()) std::getline(sf, oldSig);
 		}
-		bool needConfigure = !isRegularFile(cmakeBuildDir + "/CMakeCache.txt") || (oldSig != sigStr);
+		auto isCacheValid = [&]() -> bool {
+			std::ifstream cf((cmakeBuildDir + "/CMakeCache.txt").c_str());
+			if (!cf.is_open()) return false;
+			std::string line;
+			bool homeOk = false;
+			while (std::getline(cf, line)) {
+				if (startsWithStr(line, "CMAKE_HOME_DIRECTORY:INTERNAL=")) {
+					std::string homeVal = normalizeSlashes(trimCopy(line.substr(30)));
+					if (homeVal == normalizeSlashes(wsRoot)) homeOk = true;
+				} else {
+					size_t fp = line.find(":FILEPATH=/");
+					if (fp != std::string::npos) {
+						std::string pval = trimCopy(line.substr(fp + 10));
+						if (!pval.empty() && startsWithStr(pval, "/usr/") && !pathExists(pval)) {
+							return false;
+						}
+					}
+				}
+			}
+			return homeOk;
+		};
+		bool cacheValid = isCacheValid();
+		bool needConfigure = !cacheValid || (oldSig != sigStr);
 
-		if (needConfigure) {
+		auto runConfigureStep = [&](bool cleanCache, std::string& outCfgLog) -> int {
+			if (cleanCache) {
+				remove((cmakeBuildDir + "/CMakeCache.txt").c_str());
+				removePathRecursive(cmakeBuildDir + "/CMakeFiles");
+			}
 			{
 				std::lock_guard<std::mutex> lk(this->mutex_);
-				this->buildStatus_ = "Configuring CMake for code patches...";
+				this->buildStatus_ = "Configuring CMake project...";
+				this->buildProgress_ = 0.22f;
 			}
 			std::ostringstream cfgCmd;
 			cfgCmd << "cmake -S " << shellQuote(wsRoot)
@@ -2028,10 +2117,14 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 				cfgCmd << " -DMCPE_BASE_BUILD_ROOT=" << shellQuote(baseBuildRoot);
 			}
 			cfgCmd << " 2>&1";
-
-			std::string cfgLog;
 			int cfgCode = 0;
-			runCommandCapture(cfgCmd.str(), cfgLog, cfgCode, &this->mutex_, &this->buildStatus_);
+			runCommandCapture(cfgCmd.str(), outCfgLog, cfgCode, &this->mutex_, &this->buildStatus_, &this->buildProgress_, 0.22f, 0.30f, "configure");
+			return cfgCode;
+		};
+
+		if (needConfigure) {
+			std::string cfgLog;
+			int cfgCode = runConfigureStep(!cacheValid, cfgLog);
 			if (cfgCode != 0) {
 				std::string cleanLog = PatchManager::stripAnsiCodes(trimCopy(cfgLog));
 				finishFail("CMake configure failed while loading patch(es): " + patchNamesSS.str() + "\n\n" + cleanLog);
@@ -2043,7 +2136,8 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 
 		{
 			std::lock_guard<std::mutex> lk(this->mutex_);
-			this->buildStatus_ = "Compiling patched client (" + patchNamesSS.str() + ")...";
+			this->buildStatus_ = "Compiling patches...";
+			this->buildProgress_ = 0.32f;
 		}
 		unsigned int cores = std::thread::hardware_concurrency();
 		if (cores < 1) cores = 2;
@@ -2053,7 +2147,20 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 
 		std::string bldLog;
 		int bldCode = 0;
-		runCommandCapture(bldCmd.str(), bldLog, bldCode, &this->mutex_, &this->buildStatus_);
+		runCommandCapture(bldCmd.str(), bldLog, bldCode, &this->mutex_, &this->buildStatus_, &this->buildProgress_, 0.32f, 0.96f, "build");
+		if (bldCode != 0 && !needConfigure) {
+			std::string retryCfgLog;
+			if (runConfigureStep(true, retryCfgLog) == 0) {
+				std::ofstream sf((cmakeBuildDir + "/staged_sources.sig").c_str());
+				if (sf.is_open()) sf << sigStr;
+				{
+					std::lock_guard<std::mutex> lk(this->mutex_);
+					this->buildStatus_ = "Compiling patches...";
+					this->buildProgress_ = 0.32f;
+				}
+				runCommandCapture(bldCmd.str(), bldLog, bldCode, &this->mutex_, &this->buildStatus_, &this->buildProgress_, 0.32f, 0.96f, "build");
+			}
+		}
 		if (bldCode != 0) {
 			std::string cleanLog = PatchManager::stripAnsiCodes(trimCopy(bldLog));
 			finishFail("Failed to compile patch(es): " + patchNamesSS.str() + "\n\n" + cleanLog);
@@ -2072,6 +2179,8 @@ bool PatchManager::startApplyPatchesAsync(const std::vector<std::string>& previo
 
 		this->saveEnabledConfig();
 		std::lock_guard<std::mutex> lk(this->mutex_);
+		this->buildStatus_ = "Launching patched client...";
+		this->buildProgress_ = 1.0f;
 		this->pendingRelaunchExe_ = outExe;
 		this->asyncSuccess_ = true;
 		this->asyncWillRelaunch_ = true;
@@ -2090,6 +2199,11 @@ bool PatchManager::isBuildRunning() const {
 std::string PatchManager::getBuildStatus() const {
 	std::lock_guard<std::mutex> lock(this->mutex_);
 	return this->buildStatus_;
+}
+
+float PatchManager::getBuildProgress() const {
+	std::lock_guard<std::mutex> lock(this->mutex_);
+	return this->buildProgress_;
 }
 
 bool PatchManager::pollAsyncResult(bool& outSuccess, bool& outWillRelaunch, std::string& outError) {
@@ -2276,8 +2390,17 @@ bool PatchManager::copyTextToClipboard(const std::string& text) {
 
 void PatchManager::openPatchesFolderInOS() {
 	std::string dir = PatchManager::instance().getPatchesDir();
+	ensureDirRecursiveImpl(dir);
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
-	std::string cmd = "explorer " + shellQuote(dir);
+	char absBuf[MAX_PATH];
+	std::string winDir = dir;
+	if (_fullpath(absBuf, dir.c_str(), MAX_PATH) != nullptr) {
+		winDir = absBuf;
+	}
+	for (size_t i = 0; i < winDir.size(); ++i) {
+		if (winDir[i] == '/') winDir[i] = '\\';
+	}
+	std::string cmd = "explorer.exe \"" + winDir + "\"";
 	(void)system(cmd.c_str());
 #elif defined(__APPLE__) && !defined(MCPE_IOS)
 	std::string cmd = "open " + shellQuote(dir) + " >/dev/null 2>&1 &";

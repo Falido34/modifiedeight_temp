@@ -40,7 +40,7 @@
 #include <rendering/GameRenderer.hpp>
 #include <rendering/ItemInHandRenderer.hpp>
 #include <rendering/LevelRenderer.hpp>
-#include <sound/MusicPlayerManager.hpp>
+#include <sound/JukeboxManager.hpp>
 #include <rendering/ParticleEngine.hpp>
 #include <rendering/PerfRenderer.hpp>
 #include <rendering/Textures.hpp>
@@ -536,7 +536,7 @@ void Minecraft::leaveGame(bool_t a2, bool_t a3) {
 			this->level->saveLevelData();
 		}
 		this->rakNetInstance->disconnect();
-		MusicPlayerManager::instance.stopImmediate();
+		JukeboxManager::instance.stopImmediate();
 		this->viewEntityMaybe = 0;
 		this->levelRenderer->setLevel(0);
 		this->particleEngine->setLevel(0);

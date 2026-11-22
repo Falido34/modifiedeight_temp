@@ -1056,17 +1056,30 @@ void NewRandomLevelSource::postProcess(struct ChunkSource* a2, int32_t chunkX, i
 				int32_t fx = chunkXStart + (a8->genrand_int32() & 0xF) + 8;
 				int32_t fz = chunkZStart + (a8->genrand_int32() & 0xF) + 8;
 				int32_t fy = this->level->getHeightmap(fx, fz);
-				while (fy > 62 && (this->level->getTile(fx, fy, fz) == Tile::leaves->blockID || 
-				                   this->level->getTile(fx, fy, fz) == Tile::treeTrunk->blockID || 
-				                   this->level->getTile(fx, fy, fz) == Tile::vine->blockID || 
-				                   this->level->isEmptyTile(fx, fy, fz))) {
-					fy--;
+				if (fy >= 126) fy = 126;
+				while (fy > 45) {
+					int32_t t = this->level->getTile(fx, fy, fz);
+					if (t == 0 ||
+					    t == Tile::leaves->blockID ||
+					    t == Tile::treeTrunk->blockID ||
+					    t == Tile::vine->blockID ||
+					    t == Tile::tallgrass->blockID ||
+					    t == Tile::flower->blockID ||
+					    t == Tile::rose->blockID ||
+					    t == Tile::mushroom1->blockID ||
+					    t == Tile::mushroom2->blockID ||
+					    (Tile::flowerOrchid && t == Tile::flowerOrchid->blockID) ||
+					    (Tile::deadBush && t == Tile::deadBush->blockID)) {
+						fy--;
+						continue;
+					}
+					break;
 				}
 				if (fy > 0 && fy < 126) {
 					int32_t ground = this->level->getTile(fx, fy, fz);
-					if (ground == Tile::water->blockID || ground == Tile::calmWater->blockID || ground == Tile::grass->blockID || ground == Tile::dirt->blockID || ground == Tile::waterLily->blockID) {
+					if (ground == Tile::grass->blockID || ground == Tile::dirt->blockID || ground == Tile::clay->blockID || ground == Tile::sand->blockID || ground == Tile::waterLily->blockID || ground == Tile::water->blockID || ground == Tile::calmWater->blockID) {
 						Frog* frog = new Frog(this->level);
-						frog->moveTo((float)fx + 0.5f, (float)(fy + 1), (float)fz + 0.5f, 0.0f, 0.0f);
+						frog->moveTo((float)fx + 0.5f, (float)(fy + 1), (float)fz + 0.5f, a8->nextFloat() * 360.0f, 0.0f);
 						MobSpawner::finalizeMobSettings(frog, this->level, 0.0, 0.0, 0.0);
 						this->level->addEntity(frog);
 					}

@@ -92,37 +92,45 @@ void ItemFrameRenderer::render(Entity* entity, float x, float y, float z, float 
 	Tesselator& t = Tesselator::instance;
 	this->bindTexture("item_frame.png");
 
+	const float zBack = 0.002f;
+	const float zFront = 0.0625f;
+
+	glEnable(GL_POLYGON_OFFSET_FILL);
+	glPolygonOffset(-2.0f, -2.0f);
+
 	t.begin(4);
-	t.vertexUV(-0.5f, -0.5f, -0.0625f, 0.0f, 1.0f);
-	t.vertexUV(0.5f, -0.5f, -0.0625f, 1.0f, 1.0f);
-	t.vertexUV(0.5f, 0.5f, -0.0625f, 1.0f, 0.0f);
-	t.vertexUV(-0.5f, 0.5f, -0.0625f, 0.0f, 0.0f);
+	t.vertexUV(-0.5f, -0.5f, zBack, 0.0f, 1.0f);
+	t.vertexUV(0.5f, -0.5f, zBack, 1.0f, 1.0f);
+	t.vertexUV(0.5f, 0.5f, zBack, 1.0f, 0.0f);
+	t.vertexUV(-0.5f, 0.5f, zBack, 0.0f, 0.0f);
 
-	t.vertexUV(-0.5f, 0.5f, 0.0f, 0.0f, 0.0f);
-	t.vertexUV(0.5f, 0.5f, 0.0f, 1.0f, 0.0f);
-	t.vertexUV(0.5f, 0.5f, -0.0625f, 1.0f, 0.0625f);
-	t.vertexUV(-0.5f, 0.5f, -0.0625f, 0.0f, 0.0625f);
+	t.vertexUV(-0.5f, 0.5f, zFront, 0.0f, 0.0f);
+	t.vertexUV(0.5f, 0.5f, zFront, 1.0f, 0.0f);
+	t.vertexUV(0.5f, 0.5f, zBack, 1.0f, 0.0625f);
+	t.vertexUV(-0.5f, 0.5f, zBack, 0.0f, 0.0625f);
 
-	t.vertexUV(-0.5f, -0.5f, -0.0625f, 0.0f, 0.9375f);
-	t.vertexUV(0.5f, -0.5f, -0.0625f, 1.0f, 0.9375f);
-	t.vertexUV(0.5f, -0.5f, 0.0f, 1.0f, 1.0f);
-	t.vertexUV(-0.5f, -0.5f, 0.0f, 0.0f, 1.0f);
+	t.vertexUV(-0.5f, -0.5f, zBack, 0.0f, 0.9375f);
+	t.vertexUV(0.5f, -0.5f, zBack, 1.0f, 0.9375f);
+	t.vertexUV(0.5f, -0.5f, zFront, 1.0f, 1.0f);
+	t.vertexUV(-0.5f, -0.5f, zFront, 0.0f, 1.0f);
 
-	t.vertexUV(-0.5f, -0.5f, 0.0f, 0.0f, 1.0f);
-	t.vertexUV(-0.5f, 0.5f, 0.0f, 0.0f, 0.0f);
-	t.vertexUV(-0.5f, 0.5f, -0.0625f, 0.0625f, 0.0f);
-	t.vertexUV(-0.5f, -0.5f, -0.0625f, 0.0625f, 1.0f);
+	t.vertexUV(-0.5f, -0.5f, zFront, 0.0f, 1.0f);
+	t.vertexUV(-0.5f, 0.5f, zFront, 0.0f, 0.0f);
+	t.vertexUV(-0.5f, 0.5f, zBack, 0.0625f, 0.0f);
+	t.vertexUV(-0.5f, -0.5f, zBack, 0.0625f, 1.0f);
 
-	t.vertexUV(0.5f, -0.5f, -0.0625f, 0.9375f, 1.0f);
-	t.vertexUV(0.5f, 0.5f, -0.0625f, 0.9375f, 0.0f);
-	t.vertexUV(0.5f, 0.5f, 0.0f, 1.0f, 0.0f);
-	t.vertexUV(0.5f, -0.5f, 0.0f, 1.0f, 1.0f);
+	t.vertexUV(0.5f, -0.5f, zBack, 0.9375f, 1.0f);
+	t.vertexUV(0.5f, 0.5f, zBack, 0.9375f, 0.0f);
+	t.vertexUV(0.5f, 0.5f, zFront, 1.0f, 0.0f);
+	t.vertexUV(0.5f, -0.5f, zFront, 1.0f, 1.0f);
 
-	t.vertexUV(0.5f, -0.5f, 0.0f, 1.0f, 1.0f);
-	t.vertexUV(-0.5f, -0.5f, 0.0f, 0.0f, 1.0f);
-	t.vertexUV(-0.5f, 0.5f, 0.0f, 0.0f, 0.0f);
-	t.vertexUV(0.5f, 0.5f, 0.0f, 1.0f, 0.0f);
+	t.vertexUV(0.5f, -0.5f, zFront, 1.0f, 1.0f);
+	t.vertexUV(-0.5f, -0.5f, zFront, 0.0f, 1.0f);
+	t.vertexUV(-0.5f, 0.5f, zFront, 0.0f, 0.0f);
+	t.vertexUV(0.5f, 0.5f, zFront, 1.0f, 0.0f);
 	t.draw(1);
+
+	glDisable(GL_POLYGON_OFFSET_FILL);
 
 	ItemInstance dispItem = frame->getDisplayedItem();
 	if (!dispItem.isNull() && dispItem.count > 0) {
@@ -130,7 +138,7 @@ void ItemFrameRenderer::render(Entity* entity, float x, float y, float z, float 
 		int32_t aux = dispItem.getAuxValue();
 
 		glPushMatrix();
-		glTranslatef(0.0f, 0.0f, 0.01f);
+		glTranslatef(0.0f, 0.0f, zFront + 0.01f);
 		glRotatef((float)frame->getRotation() * 45.0f, 0.0f, 0.0f, 1.0f);
 
 		float s = 0.28f;

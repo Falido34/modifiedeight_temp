@@ -106,6 +106,18 @@ void Sheep::setSheared(bool_t a2) {
 
 Sheep::~Sheep() {
 }
+bool_t Sheep::hasSaddle() {
+	return ((uint32_t)this->synchedEntityData.getByte(16) >> 5) & 1;
+}
+void Sheep::setSaddle(bool_t a2) {
+	int8_t b = this->synchedEntityData.getByte(16);
+	if (a2) b |= 0x20;
+	else b &= 0xDF;
+	this->synchedEntityData.set<int8_t>(16, b);
+}
+bool_t Sheep::isSaddleable() {
+	return 1;
+}
 bool_t Sheep::interactWithPlayer(Player* a2) {
 	ItemInstance* sel; // r0
 	ItemInstance* v5;  // r8
@@ -136,6 +148,7 @@ bool_t Sheep::interactWithPlayer(Player* a2) {
 					if(!a2->abilities.instabuild) {
 						v5->hurtAndBreak(1, a2);
 					}
+					return 1;
 				}
 			}
 		}
@@ -156,11 +169,13 @@ void Sheep::readAdditionalSaveData(CompoundTag* a2) {
 	Animal::readAdditionalSaveData(a2);
 	this->setSheared(a2->getByte("Sheared") != 0);
 	this->setColor(a2->getByte("Color"));
+	this->setSaddle(a2->getByte("Saddle") != 0);
 }
 void Sheep::addAdditonalSaveData(CompoundTag* a2) {
 	Animal::addAdditonalSaveData(a2);
 	a2->putByte("Sheared", this->isSheared());
 	a2->putByte("Color", this->getColor());
+	a2->putByte("Saddle", this->hasSaddle() ? 1 : 0);
 }
 
 static std::string _textures[] = {"mob/sheep_0.png", "mob/sheep_1.png", "mob/sheep_2.png", "mob/sheep_3.png", "mob/sheep_4.png", "mob/sheep_5.png", "mob/sheep_6.png", "mob/sheep_7.png", "mob/sheep_8.png", "mob/sheep_9.png", "mob/sheep_10.png", "mob/sheep_11.png", "mob/sheep_12.png", "mob/sheep_13.png", "mob/sheep_14.png", "mob/sheep_15.png"};
@@ -198,6 +213,9 @@ void Sheep::dropDeathLoot() {
 	if(!this->isSheared()) {
 		this->spawnAtLocation(ItemInstance(Tile::cloth->blockID, 1, this->getColor()), 0.0);
 	}
+	if (this->hasSaddle() && Item::saddle) {
+		this->spawnAtLocation(Item::saddle->itemID, 1);
+	}
 }
 void Sheep::jumpFromGround() {
 	if(this->field_C88 <= 0) {
@@ -205,6 +223,11 @@ void Sheep::jumpFromGround() {
 	}
 }
 void Sheep::newServerAiStep() {
+	if (this->hasSaddle() && this->rider && this->rider->isPlayer() && (this->fedControlTicks > 0 || this->inLove > 0)) {
+		this->field_C88 = 0;
+		Animal::newServerAiStep();
+		return;
+	}
 	this->field_C88 = this->eatTileGoal->getEatAnimationTick();
 	Mob::newServerAiStep();
 }

@@ -19,7 +19,6 @@
 
 Entity* EntityFactory::CreateEntity(int32_t type, Level* level) {
 	switch(type) {
-		case 40:
 		case 41:
 			return new Boat(level);
 		case 64:
@@ -57,7 +56,10 @@ Entity* EntityFactory::loadEntity(CompoundTag* tag, Level* level) {
 	if(id < 0) {
 		return 0;
 	}
-	Entity* v7 = (id == 40 || id == 41 || id > 63) ? EntityFactory::CreateEntity(id, level) : MobFactory::CreateMob(id, level);
+	if(id == 40 && tag->contains("BoatType") && !tag->contains("Health")) {
+		id = 41;
+	}
+	Entity* v7 = (id == 41 || id > 63) ? EntityFactory::CreateEntity(id, level) : MobFactory::CreateMob(id, level);
 	if(!v7) {
 		v7 = EntityFactory::CreateEntity(id, level);
 	}

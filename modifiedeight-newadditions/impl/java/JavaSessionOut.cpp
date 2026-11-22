@@ -53,6 +53,32 @@ static int32_t javaSlotForM8Container(int32_t m8Index) {
 	return -1;
 }
 
+static int32_t m8MobToJava(int32_t m8Type) {
+	switch(m8Type) {
+		case 10: return 93;
+		case 11: return 92;
+		case 12: return 90;
+		case 13: return 91;
+		case 14: return 95;
+		case 15: case 120: return 120;
+		case 17: return 94;
+		case 22: return 98;
+		case 26: return 92;
+		case 27: case 28: case 29: case 30: return 94;
+		case 32: return 54;
+		case 33: return 50;
+		case 34: return 51;
+		case 35: return 52;
+		case 36: return 57;
+		case 37: return 55;
+		case 38: return 95;
+		case 39: return 94;
+		case 40: return 101;
+		case 53: return 53;
+		default: return m8Type;
+	}
+}
+
 static void javaWriteStack(JavaByteBuf* out, const ItemInstance& item) {
 	if(!item.isValid || item.count <= 0) {
 		out->writeShort(-1);
@@ -64,15 +90,26 @@ static void javaWriteStack(JavaByteBuf* out, const ItemInstance& item) {
 	} else if(item.tileClass) {
 		id = item.tileClass->blockID;
 	}
-	int32_t javaId = JavaIdMap::m8ItemToJava(id);
+	int32_t javaId = 0;
+	int32_t javaMeta = item.metadata;
+	if(id > 0 && id < 256) {
+		JavaIdMap::m8BlockToJava(id, item.metadata, &javaId, &javaMeta);
+	} else {
+		javaId = JavaIdMap::m8ItemToJava(id);
+		if(javaId == 383) {
+			javaMeta = m8MobToJava(item.metadata);
+		}
+	}
 	if(javaId <= 0) {
 		out->writeShort(-1);
 		return;
 	}
+	int32_t cnt = item.count;
+	if(cnt > 64) cnt = 64;
 	out->writeShort((int16_t)javaId);
-	out->writeByte((uint8_t)item.count);
-	out->writeShort((int16_t)item.metadata);
-	out->writeByte(0); // no NBT
+	out->writeByte((uint8_t)cnt);
+	out->writeShort((int16_t)javaMeta);
+	out->writeByte(0);
 }
 
 /*
@@ -362,14 +399,28 @@ bool_t JavaSession::interceptSend(Packet* pk) {
 
 	// ---- switching hotbar slot ---------------------------------------------
 	if(PlayerEquipmentPacket* p = dynamic_cast<PlayerEquipmentPacket*>(pk)) {
-		// m8 reports the container index it linked; turn it back into 0..8.
 		int32_t slot = p->slot;
 		if(slot >= 9 && slot <= 17) {
 			slot -= 9;
 		}
+		if(slot < 0 || slot > 8) {
+			if(this->player && this->player->inventory &&
+			   this->player->inventory->selectedSlot >= 0 &&
+			   this->player->inventory->selectedSlot <= 8) {
+				slot = this->player->inventory->selectedSlot;
+			}
+		}
 		if(slot >= 0 && slot <= 8 && slot != this->selectedSlot) {
 			javaDebug("out held slot %d (m8 index %d)", slot, p->slot);
 			this->sendHeldSlot(slot);
+		}
+		if(this->gamemode == 1 && slot >= 0 && slot <= 8) {
+			if(p->itemID > 0) {
+				ItemInstance cur(p->itemID, 1, p->itemMeta);
+				this->sendCreativeSlot(36 + slot, &cur);
+			} else {
+				this->sendCreativeSlot(36 + slot, 0);
+			}
 		}
 		return 1;
 	}

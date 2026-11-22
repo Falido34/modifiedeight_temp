@@ -184,6 +184,12 @@ void LocalPlayer::sendPosition() {
                           this->isSneaking());
     this->minecraft->rakNetInstance->send(v17);
   }
+  if (!JavaBridge::isActive() && this->minecraft && this->minecraft->rakNetInstance) {
+    AnimatePacket vSnk(this->entityId, this->isSneaking() ? 4 : 5);
+    vSnk.packetReliabilityMaybe = PacketReliability::UNRELIABLE;
+    vSnk.packetPriorityMaybe = PacketPriority::MEDIUM_PRIORITY;
+    this->minecraft->rakNetInstance->send(vSnk);
+  }
 }
 void LocalPlayer::setKey(int32_t a2, bool_t a3) {
   this->moveInput->setKey(a2, a3);
@@ -291,6 +297,12 @@ void LocalPlayer::tick() {
   bool_t wasSneaking = this->getSharedFlag(1);
   Player::tick();
   bool_t nowSneaking = this->getSharedFlag(1);
+  if (this->level && this->minecraft && this->minecraft->isOnline() &&
+      this->minecraft->rakNetInstance && !JavaBridge::isActive() &&
+      nowSneaking != wasSneaking) {
+    AnimatePacket snkPk(this->entityId, nowSneaking ? 4 : 5);
+    this->minecraft->rakNetInstance->send(snkPk);
+  }
   if (this->level && !this->level->isClientMaybe && this->minecraft &&
       this->minecraft->isOnline() && this->minecraft->rakNetInstance) {
     SynchedEntityData *ed = this->getEntityData();
@@ -309,7 +321,7 @@ void LocalPlayer::tick() {
 
   bool_t touchBoat = (this->minecraft && this->minecraft->useTouchscreen() &&
                       this->ridingAt &&
-                      (this->ridingAt->getEntityTypeId() == 40 ||
+                      (this->ridingAt->getEntityTypeId() == 41 ||
                        this->ridingAt->entityRenderId == BOAT));
   if (this->isJumping && this->isRiding() && !touchBoat) {
     this->ride(0);
@@ -424,17 +436,12 @@ void LocalPlayer::tick() {
     }
     ItemInstance *sel = this->inventory->getSelected();
     int32_t auxv, id;
-    if (sel) {
-      if (sel->count <= 0) {
-        id = 0;
-      } else {
-        id = sel->getId();
+    if (sel && !sel->isNull() && sel->count > 0) {
+      id = sel->getId();
+      if (id <= 0 && sel->tileClass) {
+        id = sel->tileClass->blockID;
       }
-      if (sel->count > 0) {
-        auxv = sel->getAuxValue();
-      } else {
-        auxv = 0;
-      }
+      auxv = sel->getAuxValue();
     } else {
       id = 0;
       auxv = 0;
@@ -447,6 +454,18 @@ void LocalPlayer::tick() {
           this->inventory->getLinkedSlot(this->inventory->selectedSlot);
       PlayerEquipmentPacket v23(this->entityId, id, auxv, ls);
       this->minecraft->rakNetInstance->send(v23);
+      if (!JavaBridge::isActive()) {
+        uint8_t eqBytes[5] = {
+            (uint8_t)(0x80 | (id & 0x0F)),
+            (uint8_t)(0x90 | ((id >> 4) & 0x0F)),
+            (uint8_t)(0xA0 | (((id >> 8) & 0x03) | ((auxv & 0x03) << 2))),
+            (uint8_t)(0xB0 | ((auxv >> 2) & 0x0F)),
+            (uint8_t)(0xC0 | ((auxv >> 6) & 0x0F))};
+        for (int eqStep = 0; eqStep < 5; ++eqStep) {
+          AnimatePacket eqPk(this->entityId, (int32_t)eqBytes[eqStep]);
+          this->minecraft->rakNetInstance->send(eqPk);
+        }
+      }
     }
   }
   this->updateArmorTypeHash();
@@ -461,20 +480,20 @@ void LocalPlayer::tick() {
 }
 
 void LocalPlayer::ride(Entity *a2) {
-  Level *level; // r3
+  Level *level;
 
+  bool_t wasRiding = (this->ridingAt != 0);
   if (a2) {
     if (!this->ridingAt) {
       this->minecraft->gui.showTipMessage("Tap Jump to leave");
     }
-  } else if (this->ridingAt) {
-    this->noclip = false;
-    this->setPos(this->posX, this->ridingAt->posY + this->ridingHeight + 0.5f, this->posZ);
-    this->fallDistance = 0.0f;
-    this->motionY = 0.0f;
-    this->onGround = true;
   }
   Player::ride(a2);
+  if (!a2 && wasRiding) {
+    this->noclip = false;
+    this->fallDistance = 0.0f;
+    this->motionY = 0.0f;
+  }
   level = this->level;
   if (!level->isClientMaybe) {
     SetEntityLinkPacket v9(0, this->entityId,

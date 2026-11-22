@@ -11,6 +11,7 @@
 #include <entity/ai/goals/RandomStrollGoal.hpp>
 #include <entity/ai/goals/LookAtPlayerGoal.hpp>
 #include <entity/ai/goals/RandomLookAroundGoal.hpp>
+#include <nbt/CompoundTag.hpp>
 
 Cow::Cow(Level* a2)
 	: Animal(a2) {
@@ -18,6 +19,7 @@ Cow::Cow(Level* a2)
 	this->entityRenderId = COW;
 	this->skin = "mob/cow.png";
 	this->setSize(0.9, 1.3);
+	this->synchedEntityData.define<int8_t>(16, 0);
 	this->getNavigation()->setAvoidWater(1);
 	this->goalSelector.addGoal(0, new FloatGoal(this), 1);
 	this->goalSelector.addGoal(1, new PanicGoal(this, 1.5), 1);
@@ -30,6 +32,15 @@ Cow::Cow(Level* a2)
 }
 
 Cow::~Cow() {
+}
+bool_t Cow::hasSaddle() {
+	return this->synchedEntityData.getByte(16) & 1;
+}
+void Cow::setSaddle(bool_t a2) {
+	this->synchedEntityData.set<int8_t>(16, a2 ? 1 : 0);
+}
+bool_t Cow::isSaddleable() {
+	return 1;
 }
 void Cow::tick() {
 	++this->milkedTicks;
@@ -61,9 +72,11 @@ int32_t Cow::getEntityTypeId() const {
 }
 void Cow::readAdditionalSaveData(CompoundTag* a2) {
 	Animal::readAdditionalSaveData(a2);
+	this->setSaddle(a2->getByte("Saddle") != 0);
 }
 void Cow::addAdditonalSaveData(CompoundTag* a2) {
 	Animal::addAdditonalSaveData(a2);
+	a2->putByte("Saddle", this->hasSaddle() ? 1 : 0);
 }
 float Cow::getBaseSpeed() {
 	return 0.2;
@@ -97,6 +110,9 @@ void Cow::dropDeathLoot() {
 		++v5;
 
 	} while(v6 >= v5);
+	if (this->hasSaddle() && Item::saddle) {
+		this->spawnAtLocation(Item::saddle->itemID, 1);
+	}
 }
 float Cow::getSoundVolume() {
 	return 0.4;

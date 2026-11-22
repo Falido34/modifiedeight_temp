@@ -10,6 +10,7 @@
 #include <entity/ai/goals/TemptGoal.hpp>
 #include <entity/path/PathNavigation.hpp>
 #include <item/Item.hpp>
+#include <nbt/CompoundTag.hpp>
 
 Pig::Pig(Level* a2)
 	: Animal(a2) {
@@ -31,7 +32,10 @@ bool_t Pig::hasSaddle() {
 	return this->synchedEntityData.getByte(16) & 1;
 }
 void Pig::setSaddle(bool_t a2) {
-	this->synchedEntityData.set<int8_t>(16, a2);
+	this->synchedEntityData.set<int8_t>(16, a2 ? 1 : 0);
+}
+bool_t Pig::isSaddleable() {
+	return 1;
 }
 
 Pig::~Pig() {
@@ -42,6 +46,14 @@ bool_t Pig::interactWithPlayer(Player* a2) {
 int32_t Pig::getEntityTypeId() const {
 	return 12;
 }
+void Pig::readAdditionalSaveData(CompoundTag* a2) {
+	Animal::readAdditionalSaveData(a2);
+	this->setSaddle(a2->getByte("Saddle") != 0);
+}
+void Pig::addAdditonalSaveData(CompoundTag* a2) {
+	Animal::addAdditonalSaveData(a2);
+	a2->putByte("Saddle", this->hasSaddle() ? 1 : 0);
+}
 float Pig::getBaseSpeed() {
 	return 0.25;
 }
@@ -49,13 +61,19 @@ int32_t Pig::getMaxHealth() {
 	return 10;
 }
 bool_t Pig::canBeControlledByRider() {
-	return this->rider && this->rider->isPlayer() && ((Player*)this->rider)->getCarriedItem();
+	return this->rider && this->rider->isPlayer() && (this->fedControlTicks > 0 || this->inLove > 0);
 }
 int32_t Pig::getDeathLoot() {
 	if(this->isOnFire()) {
 		return Item::porkChop_cooked->itemID;
 	}
 	return Item::porkChop_raw->itemID;
+}
+void Pig::dropDeathLoot() {
+	Animal::dropDeathLoot();
+	if (this->hasSaddle() && Item::saddle) {
+		this->spawnAtLocation(Item::saddle->itemID, 1);
+	}
 }
 const char_t* Pig::getAmbientSound() {
 	return "mob.pig";

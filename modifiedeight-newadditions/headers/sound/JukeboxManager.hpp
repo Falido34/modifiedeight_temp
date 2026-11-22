@@ -27,8 +27,8 @@ struct PlayingJukebox {
 	int32_t nextTrackIndex;
 };
 
-struct MusicPlayerManager {
-	static MusicPlayerManager instance;
+struct JukeboxManager {
+	static JukeboxManager instance;
 
 	std::vector<CustomMusicTrack> tracks;
 	std::vector<PlayingJukebox> activePlayers;
@@ -46,7 +46,7 @@ struct MusicPlayerManager {
 	int32_t playbackMode;
 	std::vector<uint8_t> loadedFileBytes;
 
-	MusicPlayerManager();
+	JukeboxManager();
 	void loadTracks();
 	void playTrack(int32_t trackIndex, int32_t x, int32_t y, int32_t z);
 	void stop();

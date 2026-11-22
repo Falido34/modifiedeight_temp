@@ -16,6 +16,7 @@
 Animal::Animal(Level* a2)
 	: AgableMob(a2) {
 	this->inLove = 0;
+	this->fedControlTicks = 0;
 	this->familyParentId = 0;
 	this->familyCoParentId = 0;
 	this->familyRepathTicks = 0;
@@ -39,52 +40,66 @@ void Animal::resetLove() {
 Animal::~Animal() {
 }
 bool_t Animal::interactWithPlayer(Player* a2) {
-	ItemInstance* sel; // r5
-	int32_t v5;		   // r6
-	float g;		   // s21
-	float g2;		   // s20
-	float v8;		   // r0
-	float posX;		   // s16
-	Level* level;	   // r7
-	float v11;		   // s19
-	float f;		   // r0
-	float entityWidth; // s15
-	float v14;		   // s18
-	float posY;		   // s16
-	float ff;		   // r0
-	float posZ;		   // s22
-	float v18;		   // s16
-	float v19;		   // r0
-
-	sel = a2->inventory->getSelected();
-	if(!sel || !this->isFood(sel) || this->isBaby() || this->getAge()) {
+	if (!a2) {
 		return Entity::interactWithPlayer(a2);
 	}
-	if(!a2->abilities.instabuild) {
-		--sel->count;
+	ItemInstance* sel = a2->inventory ? a2->inventory->getSelected() : 0;
+	if (this->isSaddleable() && !this->isBaby() && !this->hasSaddle() && sel && Item::saddle && sel->itemClass == Item::saddle) {
+		if (!this->level->isClientMaybe) {
+			this->setSaddle(1);
+			this->level->playSound(this, "step.cloth", 0.6f, 1.0f);
+		}
+		if (!a2->abilities.instabuild) {
+			--sel->count;
+		}
+		return 1;
 	}
-	v5 = 7;
-	this->inLove = 600;
-	this->attackTarget = 0;
-	do {
-		g = this->random.nextGaussian();
-		g2 = this->random.nextGaussian();
-		v8 = this->random.nextGaussian();
-		posX = this->posX;
-		level = this->level;
-		v11 = v8;
-		f = this->random.nextFloat();
-		entityWidth = this->entityWidth;
-		v14 = posX + (float)((float)(f * entityWidth) + (float)(f * entityWidth));
-		posY = this->posY;
-		ff = this->random.nextFloat();
-		posZ = this->posZ;
-		v18 = (float)(posY + 0.5) + (float)(ff * this->entityHeight);
-		v19 = this->random.nextFloat();
-		level->addParticle(PT_HEART, v14 - entityWidth, v18, (float)(posZ + (float)((float)(v19 * this->entityWidth) + (float)(v19 * this->entityWidth))) - this->entityWidth, g * 0.02, g2 * 0.02, v11 * 0.02, 0);
-		--v5;
-	} while(v5);
-	return 1;
+	if (sel && this->isFood(sel) && !this->isBaby()) {
+		bool_t canFeedForRide = this->isSaddleable();
+		if (this->getAge() == 0 || canFeedForRide) {
+			if (!a2->abilities.instabuild) {
+				--sel->count;
+			}
+			if (this->getAge() == 0) {
+				this->inLove = 600;
+			}
+			if (canFeedForRide) {
+				this->fedControlTicks = 1200;
+			}
+			this->attackTarget = 0;
+			int32_t v5 = 7;
+			do {
+				float g = this->random.nextGaussian();
+				float g2 = this->random.nextGaussian();
+				float v8 = this->random.nextGaussian();
+				float posX = this->posX;
+				Level* level = this->level;
+				float f = this->random.nextFloat();
+				float entityWidth = this->entityWidth;
+				float v14 = posX + (float)((float)(f * entityWidth) + (float)(f * entityWidth));
+				float posY = this->posY;
+				float ff = this->random.nextFloat();
+				float posZ = this->posZ;
+				float v18 = (float)(posY + 0.5) + (float)(ff * this->entityHeight);
+				float v19 = this->random.nextFloat();
+				level->addParticle(PT_HEART, v14 - entityWidth, v18, (float)(posZ + (float)((float)(v19 * this->entityWidth) + (float)(v19 * this->entityWidth))) - this->entityWidth, g * 0.02, g2 * 0.02, v8 * 0.02, 0);
+				--v5;
+			} while (v5);
+			return 1;
+		}
+	}
+	if (this->isSaddleable() && this->hasSaddle() && !this->isBaby() && (!this->rider || this->rider == a2)) {
+		if (!this->level->isClientMaybe) {
+			if (this->rider != a2) {
+				a2->isJumping = 0;
+				a2->setSneaking(0);
+				a2->ride(this);
+				this->positionRider(0);
+			}
+		}
+		return 1;
+	}
+	return Entity::interactWithPlayer(a2);
 }
 
 bool_t Animal::hurt(Entity* a2, int32_t a3) {
@@ -99,10 +114,75 @@ int32_t Animal::getCreatureBaseType() {
 void Animal::readAdditionalSaveData(CompoundTag* a2) {
 	AgableMob::readAdditionalSaveData(a2);
 	this->inLove = a2->getInt("InLove");
+	this->fedControlTicks = a2->getInt("FedControlTicks");
 }
 void Animal::addAdditonalSaveData(CompoundTag* a2) {
 	AgableMob::addAdditonalSaveData(a2);
 	a2->putInt("InLove", this->inLove);
+	a2->putInt("FedControlTicks", this->fedControlTicks);
+}
+bool_t Animal::hasSaddle() {
+	return 0;
+}
+void Animal::setSaddle(bool_t) {
+}
+bool_t Animal::isSaddleable() {
+	return 0;
+}
+void Animal::newServerAiStep() {
+	if (this->isSaddleable() && this->hasSaddle() && this->rider && this->rider->isPlayer() && (this->fedControlTicks > 0 || this->inLove > 0)) {
+		this->moveForward = 0.0f;
+		this->moveStrafe = 0.0f;
+		this->isJumping = 0;
+		return;
+	}
+	Mob::newServerAiStep();
+}
+void Animal::positionRider(bool_t isDead) {
+	if (!this->rider) return;
+	float offY = (this->isDead || isDead)
+		? (this->rider->ridingHeight + 0.05f)
+		: (this->getRideHeight() + this->rider->getRidingHeight());
+	this->rider->setPos(this->posX, this->posY + offY, this->posZ);
+	this->rider->prevX = this->prevX;
+	this->rider->prevY = this->prevY + offY;
+	this->rider->prevZ = this->prevZ;
+	this->rider->prevPosX = this->prevX;
+	this->rider->prevPosY = this->prevY + offY;
+	this->rider->prevPosZ = this->prevZ;
+	this->rider->motionX = 0.0f;
+	this->rider->motionY = 0.0f;
+	this->rider->motionZ = 0.0f;
+	this->rider->fallDistance = 0.0f;
+}
+void Animal::travel(float strafe, float forward) {
+	if (this->isSaddleable() && this->hasSaddle() && this->rider && this->rider->isPlayer() && (this->fedControlTicks > 0 || this->inLove > 0)) {
+		if (!this->level->isClientMaybe) {
+			Player* pRider = (Player*)this->rider;
+			float yawDiff = Mth::wrapDegrees(pRider->yaw - this->yaw);
+			this->yaw = Mth::wrapDegrees(this->yaw + Mth::clamp(yawDiff, -20.0f, 20.0f));
+			this->field_124 = this->yaw;
+			this->headYaw = this->yaw;
+			this->pitch = Mth::clamp(pRider->pitch * 0.5f, -25.0f, 25.0f);
+			this->stepHeight = 1.0f;
+			if (this->isInWater() || this->isInLava()) {
+				this->motionY += 0.04f;
+			}
+			float drive = (pRider->moveForward > 0.05f) ? Mth::clamp(pRider->moveForward, 0.0f, 1.0f) : 0.0f;
+			float prevSpeed = this->getSpeed();
+			this->setSpeed(this->getBaseSpeed() * 1.15f);
+			Mob::travel(0.0f, drive);
+			this->setSpeed(prevSpeed);
+			this->positionRider(0);
+			return;
+		}
+		this->positionRider(0);
+		return;
+	}
+	if (this->stepHeight > 0.5f) {
+		this->stepHeight = 0.5f;
+	}
+	Mob::travel(strafe, forward);
 }
 int32_t Animal::getAmbientSoundInterval() {
 	return 240;
@@ -124,6 +204,18 @@ void Animal::aiStep() {
 	float v15;		// s16
 	float v16;		// r0
 
+	if (!this->isAlive() && this->rider) {
+		this->rider->ride(0);
+	}
+	if (this->fedControlTicks > 0 && !this->rider) {
+		--this->fedControlTicks;
+	}
+	if (this->isSaddleable() && this->hasSaddle() && this->rider && this->rider->isPlayer() && (this->fedControlTicks > 0 || this->inLove > 0)) {
+		if (this->getNavigation()) {
+			this->getNavigation()->stop();
+		}
+		this->attackTarget = 0;
+	}
 	AgableMob::aiStep();
 	if(this->getAge()) {
 		this->inLove = 0;

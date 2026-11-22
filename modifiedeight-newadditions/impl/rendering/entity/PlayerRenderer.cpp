@@ -730,6 +730,7 @@ void PlayerRenderer::additionalRendering(Mob* a2, float a3) {
 	glRotatef(capeZRot, 0.0f, 0.0f, 1.0f);
 
 	GLboolean cullWas = glIsEnabled(GL_CULL_FACE);
+	GLboolean texCoordWas = glIsEnabled(GL_TEXTURE_COORD_ARRAY);
 	glDisable(GL_CULL_FACE);
 
 	Tesselator& t = Tesselator::instance;
@@ -787,6 +788,7 @@ void PlayerRenderer::additionalRendering(Mob* a2, float a3) {
 	t.vertexUV(halfW, height, depth, u2, v1);
 
 	t.draw(1);
+	if (texCoordWas) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	if (cullWas) glEnable(GL_CULL_FACE);
 	glPopMatrix();
 }

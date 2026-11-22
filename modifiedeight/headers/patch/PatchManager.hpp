@@ -72,6 +72,7 @@ struct PatchManager {
 	bool startApplyPatchesAsync(const std::vector<std::string>& previousEnabled);
 	bool isBuildRunning() const;
 	std::string getBuildStatus() const;
+	float getBuildProgress() const;
 	bool pollAsyncResult(bool& outSuccess, bool& outWillRelaunch, std::string& outError);
 	bool relaunchPendingBinary();
 
@@ -123,6 +124,7 @@ private:
 	bool asyncWillRelaunch_ = false;
 	std::string asyncError_;
 	std::string buildStatus_;
+	float buildProgress_ = 0.0f;
 	std::string pendingRelaunchExe_;
 	std::vector<std::string> pendingRollbackIds_;
 };

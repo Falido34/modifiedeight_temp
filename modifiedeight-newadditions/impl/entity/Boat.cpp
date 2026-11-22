@@ -48,7 +48,7 @@ bool_t Boat::isPushable() {
 }
 
 int32_t Boat::getEntityTypeId() const {
-	return 40;
+	return 41;
 }
 
 int32_t Boat::getBoatType() const {
