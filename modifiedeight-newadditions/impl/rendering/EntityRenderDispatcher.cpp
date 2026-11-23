@@ -61,6 +61,8 @@
 #include <rendering/entity/SnowGolemRenderer.hpp>
 #include <rendering/model/SnowGolemModel.hpp>
 #include <entity/Cow.hpp>
+#include <rendering/entity/ArmadilloRenderer.hpp>
+#include <rendering/model/ArmadilloModel.hpp>
 
 struct CowSaddleModel : Model {
 	ModelPart body;
@@ -137,6 +139,7 @@ EntityRenderDispatcher::EntityRenderDispatcher() {
 	this->assign(OCELOT, new OcelotRenderer(new OcelotModel(), 0.4f));
 	this->assign(BOAT, new BoatRenderer());
 	this->assign(SNOW_GOLEM, new SnowGolemRenderer(new SnowGolemModel(), 0.5f));
+	this->assign(ARMADILLO, new ArmadilloRenderer(new ArmadilloModel(), 0.25f));
 	for(auto&& p: this->renderers) {
 		if (p) p->init(this);
 	}
