@@ -1232,3 +1232,9 @@ item.seagrass.name=Seagrass
 options.showcape=Show Cape
 options.skinsource=Skin Source
 options.classicbackground=Menu Background
+
+entity.Armadillo=Armadillo
+entity.Armadillo.name=Armadillo
+item.spiderEye.name=Spider Eye
+item.armadilloScute.name=Armadillo Scute
+item.brush.name=Brush
