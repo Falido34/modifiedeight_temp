@@ -158,7 +158,7 @@ static void addTabItem(int tab, Item *item, int count = 1, int aux = 0) {
         return;
       }
       if (item == Item::mushroomStew) return;
-      if (item == Item::mobPlacer && aux != 10 && aux != 11 && aux != 12 && aux != 13 && aux != 32 && aux != 33 && aux != 34 && aux != 35 && aux != 36) return;
+      if (item == Item::mobPlacer && aux != 10 && aux != 11 && aux != 12 && aux != 13 && aux != 32 && aux != 33 && aux != 34 && aux != 35 && aux != 36 && aux != 42) return;
       if (item == Item::fish_raw || item == Item::fish_cooked || item == Item::salmon_raw || item == Item::salmon_cooked || item == Item::clownfish || item == Item::pufferfish) return;
     }
     CreativeInventoryScreen::filteredItems[tab].emplace_back(
@@ -393,7 +393,7 @@ void CreativeInventoryScreen::populateFilteredItems(bool isServer) {
 
   // TAB 3: Spawn Eggs
   for (int eggId : {10, 11, 12, 13, 14, 53, 17, 22, 26, 27, 28, 29,
-                    30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 120}) {
+                    30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 42, 120}) {
     addTabItem(5, Item::mobPlacer, 1, eggId);
   }
 
