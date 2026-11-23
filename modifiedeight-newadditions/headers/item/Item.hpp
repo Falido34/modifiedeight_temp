@@ -149,6 +149,8 @@ struct Item{
 	static Item* sweetBerries;
 	static Item* itemFrame;
 	static Item* armorStand;
+	static Item* spiderEye;
+	static Item* armadilloScute;
 
 	int32_t maxStackSize;
 	std::string itemTexture;
