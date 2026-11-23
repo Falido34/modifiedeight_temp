@@ -44,6 +44,7 @@ enum EntityRendererId
 	OCELOT = 39,
 	BOAT = 40,
 	SNOW_GOLEM = 41,
+	ARMADILLO = 42,
 
 	LENGTH
 };
