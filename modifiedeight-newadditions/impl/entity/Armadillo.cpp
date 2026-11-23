@@ -116,6 +116,14 @@ void Armadillo::aiStep() {
 bool_t Armadillo::interactWithPlayer(Player* player) {
 	if (!player || !player->inventory) return Animal::interactWithPlayer(player);
 	ItemInstance* selected = player->inventory->getSelected();
+	if (!this->isBaby() && !this->isRolledUp() && selected && selected->itemClass && Item::brush && selected->itemClass == Item::brush) {
+		if (!this->level->isClientMaybe) {
+			if (Item::armadilloScute) this->spawnAtLocation(Item::armadilloScute->itemID, 1);
+			this->level->playSound(this, "mob.armadillo.brush", 0.9f, 1.0f);
+		}
+		selected->hurtAndBreak(1, this);
+		return 1;
+	}
 	if (this->isBaby() && this->isFood(selected) && !this->isRolledUp()) {
 		if (!player->abilities.instabuild) {
 			--selected->count;
