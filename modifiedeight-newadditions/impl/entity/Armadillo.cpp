@@ -1,6 +1,7 @@
 #include <entity/Armadillo.hpp>
 #include <entity/Player.hpp>
 #include <item/Item.hpp>
+#include <inventory/Inventory.hpp>
 #include <entity/ai/goals/FloatGoal.hpp>
 #include <entity/ai/goals/PanicGoal.hpp>
 #include <entity/ai/goals/RandomStrollGoal.hpp>
@@ -137,6 +138,7 @@ bool_t Armadillo::interactWithPlayer(Player* player) {
 			this->level->playSound(this, "mob.armadillo.brush", 0.9f, 1.0f);
 		}
 		selected->hurtAndBreak(1, this);
+		if (selected->count <= 0) player->inventory->clearSlot(player->inventory->selectedSlot);
 		return 1;
 	}
 	if (this->isBaby() && this->isFood(selected) && !this->isRolledUp()) {
