@@ -34,3 +34,7 @@ bool_t MobHeadTileEntity::save(CompoundTag* tag) {
 	tag->putByte("SkullType", (int8_t)this->headType);
 	return res;
 }
+
+void MobHeadTileEntity::onUpdatePacket(CompoundTag* tag) {
+	this->load(tag);
+}

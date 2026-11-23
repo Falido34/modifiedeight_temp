@@ -160,6 +160,7 @@ int32_t BedTile::getSpawnResourcesAuxValue(int32_t) {
 	return this->bedColor;
 }
 void BedTile::spawnResources(Level* a2, int32_t a3, int32_t a4, int32_t a5, int32_t a6, float a7){
+	if(a2->isClientMaybe) return;
 	if(!BedTile::isHeadPiece(a6)){
 		this->popResource(a2, a3, a4, a5, ItemInstance(Item::bed, 1, this->bedColor));
 	}

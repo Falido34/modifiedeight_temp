@@ -12,4 +12,5 @@ struct MobHeadTileEntity: TileEntity {
 	virtual bool_t shouldSave();
 	virtual void load(CompoundTag*);
 	virtual bool_t save(CompoundTag*);
+	virtual void onUpdatePacket(CompoundTag*);
 };

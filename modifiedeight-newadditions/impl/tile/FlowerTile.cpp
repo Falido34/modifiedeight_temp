@@ -67,6 +67,7 @@ LABEL_8:
 }
 
 void FlowerTile::spawnResources(Level* level, int32_t x, int32_t y, int32_t z, int32_t data, float chance) {
+	if (level->isClientMaybe) return;
 	int32_t count = (data & 3) + 1;
 	for (int32_t i = 0; i < count; ++i) {
 		float xOffset = level->random.nextFloat() * 0.7f + 0.15f;

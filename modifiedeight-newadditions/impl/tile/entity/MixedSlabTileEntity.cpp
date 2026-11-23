@@ -45,3 +45,7 @@ bool_t MixedSlabTileEntity::save(CompoundTag* tag) {
 	}
 	return 0;
 }
+
+void MixedSlabTileEntity::onUpdatePacket(CompoundTag* tag) {
+	this->load(tag);
+}

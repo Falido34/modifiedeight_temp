@@ -15,4 +15,5 @@ struct MixedSlabTileEntity : TileEntity {
 	virtual bool_t shouldSave();
 	virtual void load(struct CompoundTag*);
 	virtual bool_t save(struct CompoundTag*);
+	virtual void onUpdatePacket(struct CompoundTag*);
 };
