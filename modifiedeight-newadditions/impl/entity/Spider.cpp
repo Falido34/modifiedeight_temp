@@ -1,4 +1,6 @@
 #include <entity/Spider.hpp>
+#include <entity/Armadillo.hpp>
+#include <entity/path/PathNavigation.hpp>
 #include <entity/Player.hpp>
 #include <level/Level.hpp>
 #include <item/Item.hpp>
@@ -57,6 +59,37 @@ int32_t Spider::getMaxHealth() {
 }
 void Spider::aiStep() {
 	Monster::aiStep();
+	if (!this->level || this->level->isClientMaybe) return;
+
+	AABB scanBox{
+		this->boundingBox.minX - 6.0f, this->boundingBox.minY - 3.0f, this->boundingBox.minZ - 6.0f,
+		this->boundingBox.maxX + 6.0f, this->boundingBox.maxY + 3.0f, this->boundingBox.maxZ + 6.0f
+	};
+	std::vector<Entity*>* nearby = this->level->getEntities(this, scanBox);
+	Armadillo* nearest = 0;
+	float bestDistance = 36.0f;
+	if (nearby) {
+		for (size_t i = 0; i < nearby->size(); ++i) {
+			Entity* entity = nearby->at(i);
+			if (!entity || entity->getEntityTypeId() != 42 || !entity->isAlive()) continue;
+			Armadillo* armadillo = (Armadillo*)entity;
+			if (armadillo->isRolledUp()) continue;
+			float distance = this->distanceToSqr(armadillo);
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				nearest = armadillo;
+			}
+		}
+	}
+	if (nearest) {
+		this->setAttackTarget(0);
+		if (this->getNavigation()) this->getNavigation()->stop();
+		float dx = this->posX - nearest->posX;
+		float dz = this->posZ - nearest->posZ;
+		this->yaw = (float)(atan2f(dz, dx) * 57.2957795f) - 90.0f;
+		this->moveForward = this->getBaseSpeed() * 1.5f;
+		this->moveStrafe = 0.0f;
+	}
 }
 int32_t Spider::getDeathLoot() {
 	return Item::string->itemID;
