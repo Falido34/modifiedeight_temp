@@ -9,6 +9,7 @@ struct Armadillo: Animal {
 	virtual ~Armadillo();
 	virtual int32_t getEntityTypeId() const;
 	virtual int32_t getMaxHealth();
+	virtual std::string* getTexture();
 	virtual float getBaseSpeed();
 	virtual const char_t* getAmbientSound();
 	virtual std::string getHurtSound();
