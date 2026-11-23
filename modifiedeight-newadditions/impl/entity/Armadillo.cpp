@@ -1,5 +1,6 @@
 #include <entity/Armadillo.hpp>
 #include <entity/Player.hpp>
+#include <item/Item.hpp>
 #include <entity/ai/goals/FloatGoal.hpp>
 #include <entity/ai/goals/PanicGoal.hpp>
 #include <entity/ai/goals/RandomStrollGoal.hpp>
@@ -75,7 +76,8 @@ bool_t Armadillo::hurt(Entity* attacker, int32_t damage) {
 		damage = (damage - 1) / 2;
 		if (damage < 1) damage = 1;
 	}
-	bool_t damaged = Animal::hurt(attacker, damage);
+	bool_t damaged = Mob::hurt(attacker, damage);
+	if (damaged) this->resetLove();
 	if (damaged) this->startRolling();
 	return damaged;
 }
@@ -98,7 +100,6 @@ void Armadillo::aiStep() {
 	if (this->threatScanTicks <= 0) {
 		this->threatScanTicks = 4;
 		if (this->hasNearbyThreat()) this->startRolling();
-		else if (this->rollTicks > 0 && this->rollTicks <= 56) this->rollTicks = 0;
 	}
 
 	if (this->isInWater() || !this->onGround) this->rollTicks = 0;
