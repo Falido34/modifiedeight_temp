@@ -37,6 +37,10 @@
 #include <tile/entity/TileEntity.hpp>
 #include <tile/material/Material.hpp>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 LocalPlayer::LocalPlayer(Minecraft *a2, Level *a3, User *a4, int32_t a5,
                          bool_t a6)
     : Player(a3, a6), inventoryMenu(this->inventory) {
@@ -641,6 +645,15 @@ void LocalPlayer::updateAi() {
   this->isJumping = v3;
   this->setSneaking(this->isSneaking());
 }
+void LocalPlayer::jumpFromGround() {
+  Mob::jumpFromGround();
+  if (this->isSprinting) {
+    float rad = this->yaw * (float)M_PI / 180.0f;
+    this->motionX += -Mth::sin(rad) * 0.2f;
+    this->motionZ += Mth::cos(rad) * 0.2f;
+  }
+}
+
 void LocalPlayer::take(Entity *, int32_t) {}
 void LocalPlayer::drop(const ItemInstance *a2, bool_t a3) {
   if (a2) {

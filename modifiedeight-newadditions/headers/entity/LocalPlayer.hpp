@@ -59,6 +59,7 @@ struct LocalPlayer: Player, IContainerListener
 	virtual void aiStep();
 	virtual void swing();
 	virtual void updateAi();
+	virtual void jumpFromGround();
 	virtual void take(Entity*, int32_t);
 	virtual void drop(const ItemInstance*, bool_t);
 	virtual void startCrafting(int32_t, int32_t, int32_t, int32_t);

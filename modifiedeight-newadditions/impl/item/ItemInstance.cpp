@@ -192,7 +192,7 @@ bool_t ItemInstance::isArmorItem(const ItemInstance* a1) {
 	return 0;
 }
 bool_t ItemInstance::isDamageableItem() const {
-	return this->itemClass->getMaxDamage() > 0;
+	return this->itemClass && this->itemClass->getMaxDamage() > 0;
 }
 bool_t ItemInstance::isDamaged() const {
 	if(this->isDamageableItem()) return this->metadata > 0;

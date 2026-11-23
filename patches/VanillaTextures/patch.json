@@ -1,6 +1,6 @@
 {
   "name": "VanillaTextures",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Colbux",
   "description": "Replaces all block and item textures with the original Minecraft PE 0.8.1 vanilla textures.",
   "defaultEnabled": true

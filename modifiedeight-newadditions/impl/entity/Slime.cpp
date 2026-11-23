@@ -61,6 +61,10 @@ void Slime::checkHurtTarget(Entity* a2, float a3) {
 	}
 }
 
+bool_t Slime::isPushable() {
+	return 0;
+}
+
 int32_t Slime::getEntityTypeId() const {
 	return 37;
 }
@@ -80,6 +84,11 @@ float Slime::getBaseSpeed() {
 
 void Slime::aiStep() {
 	Monster::aiStep();
+
+	int32_t metaSize = (int32_t)(uint8_t)this->synchedEntityData.getByte(16);
+	if (metaSize > 0 && metaSize != this->slimeSize) {
+		this->setSlimeSize(metaSize);
+	}
 
 	if (this->slimeSize > 1 && this->level) {
 		AABB hitBox{.minX = this->boundingBox.minX - 0.3f, .minY = this->boundingBox.minY - 0.3f, .minZ = this->boundingBox.minZ - 0.3f, .maxX = this->boundingBox.maxX + 0.3f, .maxY = this->boundingBox.maxY + 0.3f, .maxZ = this->boundingBox.maxZ + 0.3f};

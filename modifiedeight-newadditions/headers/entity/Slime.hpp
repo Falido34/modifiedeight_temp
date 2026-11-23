@@ -23,5 +23,6 @@ struct Slime: Monster {
 	virtual std::string getDeathSound();
 	virtual void playerTouch(Player*);
 	virtual void checkHurtTarget(Entity*, float);
+	virtual bool_t isPushable();
 	void setSlimeSize(int32_t);
 };
