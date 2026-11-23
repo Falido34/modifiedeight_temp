@@ -18,6 +18,7 @@ Armadillo::Armadillo(Level* level)
 	this->scuteTicks = 6000 + (level ? (level->random.genrand_int32() % 6001) : 0);
 	this->entityRenderId = ARMADILLO;
 	this->skin = "mob/armadillo.png";
+	this->synchedEntityData.define<int8_t>(16, 0);
 	this->setSize(0.7f, 0.65f);
 	this->stepHeight = 0.5f;
 	this->getNavigation()->setAvoidWater(1);
@@ -43,10 +44,15 @@ bool_t Armadillo::isFood(const ItemInstance* item) {
 	return item && item->itemClass && Item::spiderEye && item->itemClass == Item::spiderEye;
 }
 
+void Armadillo::updateSynchedFlags() {
+	this->synchedEntityData.set<int8_t>(16, this->isRolledUp() ? 1 : 0);
+}
+
 void Armadillo::startRolling() {
 	if (this->isInWater() || !this->onGround || this->isDead) return;
 	if (this->rollTicks < 60) {
 		this->rollTicks = 60;
+		this->updateSynchedFlags();
 		if (this->level) this->level->playSound(this, "mob.armadillo.roll", 1.0f, 1.0f);
 	}
 }
@@ -87,7 +93,10 @@ bool_t Armadillo::hurt(Entity* attacker, int32_t damage) {
 
 void Armadillo::tick() {
 	Animal::tick();
-	if (this->rollTicks > 0) --this->rollTicks;
+	if (this->rollTicks > 0) {
+		--this->rollTicks;
+		if (this->rollTicks == 0 && this->level && !this->level->isClientMaybe) this->updateSynchedFlags();
+	}
 	if (!this->level || this->level->isClientMaybe || this->isBaby()) return;
 	if (this->scuteTicks > 0) --this->scuteTicks;
 	if (this->scuteTicks <= 0) {
@@ -99,7 +108,10 @@ void Armadillo::tick() {
 void Armadillo::aiStep() {
 	Animal::aiStep();
 	if (!this->level) return;
-	if (this->level->isClientMaybe) return;
+	if (this->level->isClientMaybe) {
+		this->rollTicks = this->synchedEntityData.getByte(16) ? 60 : 0;
+		return;
+	}
 
 	if (this->threatScanTicks > 0) --this->threatScanTicks;
 	if (this->threatScanTicks <= 0) {
@@ -107,7 +119,7 @@ void Armadillo::aiStep() {
 		if (this->hasNearbyThreat()) this->startRolling();
 	}
 
-	if (this->isInWater() || !this->onGround) this->rollTicks = 0;
+	if ((this->isInWater() || !this->onGround) && this->rollTicks > 0) { this->rollTicks = 0; this->updateSynchedFlags(); }
 	if (this->isRolledUp()) {
 		this->moveForward = 0.0f;
 		this->moveStrafe = 0.0f;
@@ -152,6 +164,7 @@ void Armadillo::readAdditionalSaveData(CompoundTag* tag) {
 	if (this->rollTicks < 0) this->rollTicks = 0;
 	if (this->rollTicks > 60) this->rollTicks = 60;
 	if (this->scuteTicks <= 0) this->scuteTicks = 6000;
+	this->updateSynchedFlags();
 }
 
 void Armadillo::addAdditonalSaveData(CompoundTag* tag) {
