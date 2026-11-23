@@ -35,3 +35,10 @@ jobs:
       - name: Build New Additions debug APK
         working-directory: platforms/android
         run: ./gradlew --no-daemon assembleNewadditionsDebug
+
+      - name: Upload New Additions debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: modifiedeight-newadditions-debug
+          path: platforms/android/app/build/outputs/apk/newadditions/debug/*.apk
+          if-no-files-found: error
