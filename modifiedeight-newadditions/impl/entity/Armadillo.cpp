@@ -33,7 +33,7 @@ void Armadillo::tick() {
 }
 void Armadillo::aiStep() {
 	Animal::aiStep();
-	if (this->isHurt()) this->rollTicks = 40;
+	if (this->hurtTime > 0) this->rollTicks = 40;
 }
 bool_t Armadillo::isRolledUp() const { return this->rollTicks > 0; }
 Mob* Armadillo::getBreedOffspring(Animal*) { return new Armadillo(this->level); }
