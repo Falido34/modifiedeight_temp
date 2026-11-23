@@ -24,6 +24,7 @@
 #include <entity/Frog.hpp>
 #include <entity/Ocelot.hpp>
 #include <entity/Snowman.hpp>
+#include <entity/Armadillo.hpp>
 
 Mob* MobFactory::CreateMob(int32_t type, Level* level) {
 	Mob* v3; // r4
@@ -94,6 +95,9 @@ Mob* MobFactory::CreateMob(int32_t type, Level* level) {
 			break;
 		case 40:
 			v3 = new Frog(level);
+			break;
+		case 42:
+			v3 = new Armadillo(level);
 			break;
 		case 53:
 			v3 = new Giant(level);
@@ -188,6 +192,8 @@ std::string MobFactory::GetMobNameID(int32_t type) {
 			return "entity.ZombieVillager";
 		case 40:
 			return "entity.Frog";
+		case 42:
+			return "entity.Armadillo";
 		case 53:
 			return "entity.Giant";
 		default:
