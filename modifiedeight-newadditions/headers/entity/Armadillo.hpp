@@ -17,6 +17,7 @@ struct Armadillo: Animal {
 	virtual void aiStep();
 	virtual bool_t hurt(Entity*, int32_t);
 	virtual bool_t isFood(const ItemInstance*);
+	virtual bool_t interactWithPlayer(Player*);
 	virtual void readAdditionalSaveData(CompoundTag*);
 	virtual void addAdditonalSaveData(CompoundTag*);
 	virtual Mob* getBreedOffspring(Animal*);
