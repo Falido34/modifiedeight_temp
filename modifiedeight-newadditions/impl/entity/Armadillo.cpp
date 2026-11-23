@@ -37,7 +37,7 @@ std::string Armadillo::getDeathSound() { return "mob.armadillo.death"; }
 
 bool_t Armadillo::isFood(const ItemInstance* item) {
 	// Vanilla item ID 375 is the spider eye in the legacy item registry.
-	return item && item->itemClass && item->itemClass->itemID == 375;
+	return item && item->itemClass && Item::spiderEye && item->itemClass == Item::spiderEye;
 }
 
 void Armadillo::startRolling() {
@@ -85,10 +85,12 @@ bool_t Armadillo::hurt(Entity* attacker, int32_t damage) {
 void Armadillo::tick() {
 	Animal::tick();
 	if (this->rollTicks > 0) --this->rollTicks;
+	if (!this->level || this->level->isClientMaybe || this->isBaby()) return;
 	if (this->scuteTicks > 0) --this->scuteTicks;
-	// The scute timer is retained and persisted. Actual item spawning is enabled
-	// once this legacy client has a registered armadillo-scute item.
-	if (this->scuteTicks <= 0) this->scuteTicks = 6000 + (this->random.genrand_int32() % 6001);
+	if (this->scuteTicks <= 0) {
+		if (Item::armadilloScute) this->spawnAtLocation(Item::armadilloScute->itemID, 1);
+		this->scuteTicks = 6000 + (this->random.genrand_int32() % 6001);
+	}
 }
 
 void Armadillo::aiStep() {
@@ -109,6 +111,25 @@ void Armadillo::aiStep() {
 		this->isJumping = 0;
 		if (this->getNavigation()) this->getNavigation()->stop();
 	}
+}
+
+bool_t Armadillo::interactWithPlayer(Player* player) {
+	if (!player || !player->inventory) return Animal::interactWithPlayer(player);
+	ItemInstance* selected = player->inventory->getSelected();
+	if (this->isBaby() && this->isFood(selected) && !this->isRolledUp()) {
+		if (!player->abilities.instabuild) {
+			--selected->count;
+			if (selected->count <= 0) player->inventory->clearSlot(player->inventory->selectedSlot);
+		}
+		if (!this->level->isClientMaybe) {
+			int32_t age = this->getAge();
+			if (age < 0) this->setAge(age - age / 10);
+			this->level->playSound(this, "random.eat", 0.8f, 1.0f);
+		}
+		return 1;
+	}
+	if (this->isRolledUp()) return 0;
+	return Animal::interactWithPlayer(player);
 }
 
 bool_t Armadillo::isRolledUp() const { return this->rollTicks > 0; }
