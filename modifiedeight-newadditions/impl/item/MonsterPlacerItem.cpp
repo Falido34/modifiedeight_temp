@@ -57,6 +57,7 @@ TextureUVCoordinateSet* MonsterPlacerItem::getIcon(int32_t a2, int32_t a3, bool_
 		case 38: namedEgg = "spawn_egg_fox"; break;
 		case 39: namedEgg = "spawn_egg_turtle"; break;
 		case 40: namedEgg = "spawn_egg_frog"; break;
+		// Armadillo uses the base spawn-egg atlas icon until a dedicated icon is added.
 		case 15:
 		case 120: namedEgg = "spawn_egg_villager"; break;
 		default: break;
