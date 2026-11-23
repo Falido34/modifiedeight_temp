@@ -184,6 +184,7 @@ void Biome::initBiomes(void) {
 	Biome::forest->creatureVec.emplace_back(Biome::MobSpawnerData(30, 14, 2, 4));
 	Biome::forest->creatureVec.emplace_back(Biome::MobSpawnerData(25, 38, 1, 3));
 	Biome::savanna = (new FlatBiome())->setColor(0xD9E023)->setName("Savanna")->setTemperatureAndDownfall(0.8f, 0.4f);
+	Biome::savanna->creatureVec.emplace_back(Biome::MobSpawnerData(18, 42, 1, 2));
 	Biome::shrubland = (new Biome())->setColor(0xA1AD20)->setName("Shrubland");
 	Biome::taiga = (new TaigaBiome())->setColor(0xB6659)->setName("Taiga")->setSnowCovered()->setLeafColor(0x4EBA3)->setTemperatureAndDownfall(0.05f, 0.8f);
 	Biome::taiga->creatureVec.emplace_back(Biome::MobSpawnerData(45, 14, 2, 4));
