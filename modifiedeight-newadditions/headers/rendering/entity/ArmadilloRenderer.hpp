@@ -5,4 +5,5 @@
 struct ArmadilloRenderer: MobRenderer {
 	ArmadilloRenderer(ArmadilloModel*, float);
 	virtual ~ArmadilloRenderer();
+	virtual void render(Entity*, float, float, float, float, float);
 };
