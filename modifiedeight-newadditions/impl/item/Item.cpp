@@ -176,6 +176,7 @@ Item* Item::itemFrame;
 Item* Item::armorStand;
 Item* Item::spiderEye;
 Item* Item::armadilloScute;
+Item* Item::brush;
 Item* Item::items[512];
 std::string Item::ICON_DESCRIPTION_PREFIX = "item.";
 Random Item::random;
@@ -318,6 +319,7 @@ void Item::initItems(std::shared_ptr<TextureAtlas> a2){
 	// Legacy item table stores custom item IDs at 256 + constructor ID.
 	Item::spiderEye = (new Item(119))->setIcon("spider_eye", 0)->setCategory(4, 2)->setDescriptionId("spiderEye");
 	Item::armadilloScute = (new Item(251))->setIcon("armadillo_scute", 0)->setCategory(4, 2)->setDescriptionId("armadilloScute");
+	Item::brush = (new Item(252))->setIcon("brush", 0)->setMaxStackSize(1)->setMaxDamage(64)->handEquipped()->setCategory(3, 2)->setDescriptionId("brush");
 	if (Tile::sweetBerryBush && !Item::items[Tile::sweetBerryBush->blockID]) new TileItem(Tile::sweetBerryBush->blockID - 256);
 	if (Tile::jukebox && !Item::items[Tile::jukebox->blockID]) new TileItem(Tile::jukebox->blockID - 256);
 	if (Tile::slimeBlock && !Item::items[Tile::slimeBlock->blockID]) new TileItem(Tile::slimeBlock->blockID - 256);
