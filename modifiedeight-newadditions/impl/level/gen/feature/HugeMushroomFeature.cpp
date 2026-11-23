@@ -72,7 +72,7 @@ bool_t HugeMushroomFeature::place(Level* level, Random* random, int32_t x, int32
 			}
 		}
 	} else {
-		for (int32_t cy = y + height - 2; cy <= y + height; ++cy) {
+		for (int32_t cy = y + height - 3; cy <= y + height; ++cy) {
 			int32_t radius = (cy < y + height) ? 2 : 1;
 			for (int32_t dx = -radius; dx <= radius; ++dx) {
 				for (int32_t dz = -radius; dz <= radius; ++dz) {

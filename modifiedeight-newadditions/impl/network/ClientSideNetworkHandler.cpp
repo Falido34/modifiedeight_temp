@@ -859,9 +859,14 @@ void ClientSideNetworkHandler::handle(const RakNet::RakNetGUID& a2, struct Conta
 				}
 
 				for(int k = 0; k < a3->field_1C.size() && k < this->minecraft->player->inventory->getLinkedSlotsCount(); ++k) {
-					this->minecraft->player->inventory->linkedSlots[k].field_0 = a3->field_1C[k];
-					ItemInstance* v25 = this->minecraft->player->inventory->getItem(a3->field_1C[k]);
-					this->minecraft->player->inventory->setItem(k, v25);
+					int32_t link = a3->field_1C[k];
+					this->minecraft->player->inventory->linkedSlots[k].field_0 = link;
+					if(link >= 0) {
+						ItemInstance* v25 = this->minecraft->player->inventory->getItem(link);
+						this->minecraft->player->inventory->setItem(k, v25);
+					} else {
+						this->minecraft->player->inventory->clearSlot(k);
+					}
 				}
 			}
 		}
