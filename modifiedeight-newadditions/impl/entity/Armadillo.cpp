@@ -30,6 +30,9 @@ Armadillo::Armadillo(Level* level)
 Armadillo::~Armadillo() {}
 int32_t Armadillo::getEntityTypeId() const { return 42; }
 int32_t Armadillo::getMaxHealth() { return 12; }
+static std::string _armadilloAdultTexture = "mob/armadillo.png";
+static std::string _armadilloBabyTexture = "mob/armadillo_baby.png";
+std::string* Armadillo::getTexture() { return this->isBaby() ? &_armadilloBabyTexture : &_armadilloAdultTexture; }
 float Armadillo::getBaseSpeed() { return 0.14f; }
 const char_t* Armadillo::getAmbientSound() { return "mob.armadillo.idle"; }
 std::string Armadillo::getHurtSound() { return "mob.armadillo.hurt"; }
