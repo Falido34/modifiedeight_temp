@@ -137,8 +137,10 @@ bool_t Armadillo::interactWithPlayer(Player* player) {
 			if (Item::armadilloScute) this->spawnAtLocation(Item::armadilloScute->itemID, 1);
 			this->level->playSound(this, "mob.armadillo.brush", 0.9f, 1.0f);
 		}
-		selected->hurtAndBreak(1, this);
-		if (selected->count <= 0) player->inventory->clearSlot(player->inventory->selectedSlot);
+		if (!player->abilities.instabuild) {
+			selected->hurtAndBreak(1, this);
+			if (selected->count <= 0) player->inventory->clearSlot(player->inventory->selectedSlot);
+		}
 		return 1;
 	}
 	if (this->isBaby() && this->isFood(selected) && !this->isRolledUp()) {
