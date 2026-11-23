@@ -25,4 +25,5 @@ struct Armadillo: Animal {
 	bool_t isRolledUp() const;
 	bool_t hasNearbyThreat();
 	void startRolling();
+	void updateSynchedFlags();
 };
