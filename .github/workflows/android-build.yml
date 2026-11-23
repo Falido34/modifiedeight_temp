@@ -1,4 +1,5 @@
 name: Android build
+# Rebuild after the Armadillo GLES texture-state correction.
 
 on:
   push:
