@@ -41,5 +41,7 @@ void ArmadilloModel::render(Entity* entity, float a2, float a3, float a4, float 
 		this->head.setPos(0.0f, 19.0f, -4.0f);
 	}
 	this->body.render(a7); this->shell.render(a7); this->head.render(a7);
-	this->leg0.render(a7); this->leg1.render(a7); this->leg2.render(a7); this->leg3.render(a7);
+	if (!mob || !mob->isRolledUp()) {
+		this->leg0.render(a7); this->leg1.render(a7); this->leg2.render(a7); this->leg3.render(a7);
+	}
 }
